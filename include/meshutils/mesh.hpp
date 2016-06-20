@@ -2,7 +2,7 @@
 //
 // (C) Andy Thomason 2016
 //
-// Vookoo: basic mesh object
+// meshutils: basic mesh class
 // 
 
 #ifndef MESHUTILS_MESH_INCLUDED
@@ -12,7 +12,7 @@
 #include <vector>
 #include <cstdint>
 #include <ostream>
-#include <meshutils/fbxFile.hpp>
+#include <meshutils/fbx_file.hpp>
 
 namespace meshutils {
 
@@ -30,7 +30,7 @@ public:
 
   // load an FBX file
   basic_mesh(const std::string &filename) {
-    fbxFile fbx(filename);
+    fbx_file fbx(filename);
     fbx.loadFirstMesh<traits_t>(vertices_, indices_);
   }
 
