@@ -13,6 +13,34 @@ inline std::ostream & operator<<(std::ostream &os, const glm::vec3 &v) {
   return os << "vec3(" << v.x << ", " << v.y << ", " << v.z << ")";
 }
 
+class kdtree {
+public:
+  kdtree(const std::vector<glm::vec3> &pos) {
+    std::vector<sorter_t> sorter;
+
+    for (auto &p : pos) {
+      sorter.emplace_back(p, &p - pos.data());
+    }
+
+    std::sort(
+      sorter.data(), sorter.data() + sorter.size(),
+      [](const sorter_t &a, const sorter_t &b) {
+        return a.pos.x < b.pos.x;
+      }
+    );
+  }
+
+private:
+  struct sorter_t {
+    glm::vec3 pos;
+    size_t index;
+
+    sorter_t(glm::vec3 pos, size_t index) : pos(pos), index(index) {}
+  };
+
+  //std::vector<float> partitions;
+};
+
 int main() {
   meshutils::pdb_file pdb((const uint8_t*)__2ptc_pdb, (const uint8_t*)__2ptc_pdb + sizeof(__2ptc_pdb));
 
@@ -20,7 +48,9 @@ int main() {
   for (char chainID : chains) {
     std::vector<glm::vec3> pos = pdb.pos(chainID);
     std::vector<float> radii = pdb.radii(chainID);
-  
+
+    kdtree kd(pos);
+
     glm::vec3 min = pos[0];
     glm::vec3 max = pos[0];
     for (auto &p : pos) {
