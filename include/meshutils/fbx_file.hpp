@@ -2,11 +2,11 @@
 //
 // (C) Andy Thomason 2016
 //
-// Vookoo: fbx file decoder
+// Fbx file decoder
 // 
 
-#ifndef VKU_fbx_file_INCLUDED
-#define VKU_fbx_file_INCLUDED
+#ifndef VKU_FBX_FILE_INCLUDED
+#define VKU_FBX_FILE_INCLUDED
 
 #include <iostream>
 #include <fstream>
@@ -20,7 +20,7 @@
 // see https://code.blender.org/2013/08/fbx-binary-file-format-specification/
 // and https://banexdevblog.wordpress.com/2014/06/23/a-quick-tutorial-about-the-fbx-ascii-format/
 
-namespace vku {
+namespace meshutils {
 
   class fbx_file {
     enum { debug = 0 };
@@ -398,6 +398,6 @@ namespace vku {
     return os;
   }
 
-} // vku
+}
 
 #endif
