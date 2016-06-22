@@ -12,6 +12,7 @@
 #include <iostream>
 #include <cstdint>
 #include <string>
+#include <cstring>
 #include <vector>
 #include <cmath>
 #include <glm/glm.hpp>
@@ -144,10 +145,9 @@ namespace meshutils {
         ++b;
         int es = 1;
         if (b != e && *b == '-') { es = -es; b++; }
-        ++b;
         int exp = 0;
         while (b != e && *b >= '0' && *b <= '9') exp = exp * 10 + *b++ - '0';
-        return s * n * std::pow(10.0f, exp*es);
+        return s * n * std::pow(10.0f, exp * es);
       } else {
         return s * n;
       }

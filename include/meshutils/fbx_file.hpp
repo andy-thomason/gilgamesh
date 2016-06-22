@@ -241,7 +241,7 @@ namespace meshutils {
       typedef typename MeshTraits::vertex_t vertex_t;
       typedef typename MeshTraits::index_t index_t;
 
-      vku::zipDecoder decoder;
+      minizip::decoder decoder;
 
       std::vector<double> fbxVertices;
       std::vector<double> fbxNormals;

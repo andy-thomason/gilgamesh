@@ -11,8 +11,11 @@
 #include <glm/glm.hpp>
 #include <vector>
 #include <cstdint>
+#include <cstdio>
 #include <ostream>
+#include <algorithm>
 #include <meshutils/fbx_file.hpp>
+#include <stdio.h>
 
 namespace meshutils {
 
@@ -352,9 +355,9 @@ public:
             while (n--) {
               float value = *((float*&)sp)++;
               #ifdef _WIN32
-                dp += sprintf_s(dp, ep-dp, "%f", value);
+                dp += ::sprintf_s(dp, ep-dp, "%f", value);
               #else
-                dp += snprint(dp, ep-dp, "%f", value);
+                dp += ::snprintf(dp, ep-dp, "%f", value);
               #endif
               if (dp != ep && (*fp || n)) { *dp++ = ','; }
             }

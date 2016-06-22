@@ -14,7 +14,9 @@ inline std::ostream & operator<<(std::ostream &os, const glm::vec3 &v) {
 }
 
 int main() {
-  meshutils::pdb_file pdb((const uint8_t*)__2ptc_pdb, (const uint8_t*)__2ptc_pdb + sizeof(__2ptc_pdb));
+  meshutils::pdb_file pdb(
+    (const uint8_t*)__2ptc_pdb, (const uint8_t*)__2ptc_pdb + sizeof(__2ptc_pdb)
+  );
 
   std::string chains = pdb.chains();
   for (char chainID : chains) {
