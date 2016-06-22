@@ -8,6 +8,8 @@
 #ifndef MINIZIP_DECODER_INCLUDED
 #define MINIZIP_DECODER_INCLUDED
 
+#include <cstring>
+
 namespace minizip {
 
   class decoder {
