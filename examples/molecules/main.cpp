@@ -24,6 +24,7 @@ public:
     }
 
     size_t size = sorter.size();
+size = 12;
     auto *begin = sorter.data();
     auto *end = begin + size;
 
@@ -44,7 +45,7 @@ public:
         }
       );
 
-      if (step == 1) {
+      {
         printf("---\n");
         for (auto *p = begin; p != end; ++p) {
           printf("%5d %5d %f %f %f %d\n", (int)(p - begin), (int)(p->partition), p->pos.x, p->pos.y, p->pos.z, (int)p->index);
@@ -71,7 +72,7 @@ public:
   }
 
   // note that this is not thread safe
-  const std::vector <size_t> &find_in_range(const glm::vec3 &min, const glm::vec3 &max) {
+  void find_in_range(std::vector<size_t> &result, const glm::vec3 &min, const glm::vec3 &max) {
     int axis = 0;
     size_t step = size_;
     in_starts_.resize(0);
@@ -87,12 +88,14 @@ public:
         size_t upper = p.upper;
         size_t mid = p.mid;
         float mid_value = p.mid_value;
-        printf("%d..%d..%d mid_value=%f\n", (int)lower, (int)mid, (int)upper, mid_value);
+        printf("p%d %d..%d..%d mid_value=%f\n", (int)idx, (int)lower, (int)mid, (int)upper, mid_value);
         if (minx <= mid_value) {
-          out_starts_.emplace_back(lower);
+          printf("  push %d\n", (int)idx*2+1);
+          out_starts_.emplace_back(idx*2+1);
         }
         if (maxx >= mid_value) {
-          out_starts_.emplace_back(mid);
+          printf("  push %d\n", (int)idx*2+2);
+          out_starts_.emplace_back(idx*2+2);
         }
       }
 
@@ -102,7 +105,14 @@ public:
       step = (step + 1) / 2;
       std::swap(in_starts_, out_starts_);
     }
-    return out_starts_;
+    for (size_t idx : out_starts_) {
+      partition_t p = partitions_[idx];
+      size_t lower = p.lower;
+      size_t upper = p.upper;
+      size_t mid = p.mid;
+      float mid_value = p.mid_value;
+      printf("result p%d %d..%d..%d mid_value=%f\n", (int)idx, (int)lower, (int)mid, (int)upper, mid_value);
+    }
   }
 
 private:
@@ -139,9 +149,11 @@ int main() {
 
     kdtree kd(pos);
 
-    const std::vector <size_t> &res = kd.find_in_range(pos[0], pos[0]);
+    std::vector<size_t> res;
+    kd.find_in_range(res, pos[0], pos[0]);
     return 0;
 
+#if 0
     glm::vec3 min = pos[0];
     glm::vec3 max = pos[0];
     for (auto &p : pos) {
@@ -194,5 +206,6 @@ int main() {
         }
       }
     }*/
+#endif
   }
 }
