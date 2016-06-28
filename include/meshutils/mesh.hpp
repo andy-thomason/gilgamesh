@@ -371,7 +371,7 @@ public:
     }
     return *this;
   }
-  
+
 private:
   struct expandedVertex {
     vertex_t vtx;
@@ -497,6 +497,27 @@ struct simple_mesh_traits {
 
 typedef basic_mesh<simple_mesh_traits> simple_mesh;
 
+static void parse_attrib(int &n, char &type, char *name, size_t name_len, const char *&format) {
+  char *dp = name;
+  char *ep = name + name_len - 1;
+  const char *fp = format;
+  while (*fp != ':' && *fp != 0) {
+    if (dp < ep) *dp++ = *fp;
+    ++fp;
+  }
+  *dp = 0;
+
+  if (*fp == ':') ++fp;
+
+  n = 0;
+  while (*fp >= '0' && *fp <= '9') n = n * 10 + *fp++ - '0';
+
+  type = *fp;
+  if (*fp) ++fp;
+  if (*fp == ',') ++fp;
+  format = fp;
+}
+  
 } // vku
 
 #endif
