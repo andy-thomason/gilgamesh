@@ -455,6 +455,41 @@ private:
   std::vector<index_t> indices_;
 };
 
+struct pos_mesh_traits {
+  class vertex_t {
+  public:
+    vertex_t() {}
+
+    vertex_t(const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv) {
+      pos_ = pos;
+    }
+
+    // Lerp constructor.
+    vertex_t(const vertex_t &lhs, const vertex_t &rhs, float lambda) {
+      pos_ = glm::mix(lhs.pos_, rhs.pos_, lambda);
+    }
+
+    glm::vec3 pos() const { return pos_; }
+    glm::vec3 normal() const { return glm::vec3(1, 0, 0); }
+    glm::vec2 uv() const { return glm::vec2(0, 0); }
+    glm::vec4 color() const { return glm::vec4(1.0f); }
+
+    vertex_t &pos(const glm::vec3 &value) { pos_ = value; return *this; }
+    vertex_t &normal(const glm::vec3 &value) {}
+    vertex_t &uv(const glm::vec2 &value) {}
+    vertex_t &color(const glm::vec4 &value) {}
+  private:
+    // The physical layout of these data are reflected in the result of getFormat()
+    glm::vec3 pos_;
+  };
+
+  static const char *getFormat() {
+    return "pos:3f";
+  }
+
+  typedef uint32_t index_t;
+};
+
 struct simple_mesh_traits {
   class vertex_t {
   public:
@@ -466,23 +501,24 @@ struct simple_mesh_traits {
       uv_ = uv;
     }
 
-    #ifdef VKU_INCLUDED
-      static void getVertexFormat(vku::pipelineCreateHelper &pipeHelper, uint32_t vertex_buffer_bind_id) {
-        pipeHelper.binding(vertex_buffer_bind_id, sizeof(vertex_t), VK_VERTEX_INPUT_RATE_VERTEX);
-        pipeHelper.attrib(0, vertex_buffer_bind_id, VK_FORMAT_R32G32B32_SFLOAT, 0);
-        pipeHelper.attrib(1, vertex_buffer_bind_id, VK_FORMAT_R32G32B32_SFLOAT, sizeof(vertex_t::pos_));
-        pipeHelper.attrib(2, vertex_buffer_bind_id, VK_FORMAT_R32G32_SFLOAT, sizeof(vertex_t::pos_) + sizeof(vertex_t::normal_));
-      }
-    #endif
+    // Lerp constructor.
+    vertex_t(const vertex_t &lhs, const vertex_t &rhs, float lambda) {
+      pos_ = glm::mix(lhs.pos_, rhs.pos_, lambda);
+      normal_ = glm::mix(lhs.normal_, rhs.normal_, lambda);
+      uv_ = glm::mix(lhs.uv_, rhs.uv_, lambda);
+    }
 
     glm::vec3 pos() const { return pos_; }
     glm::vec3 normal() const { return normal_; }
     glm::vec2 uv() const { return uv_; }
+    glm::vec4 color() const { return glm::vec4(1.0f); }
 
-    vertex_t pos(const glm::vec3 &value) { pos_ = value; return *this; }
-    vertex_t normal(const glm::vec3 &value) { normal_ = value; return *this; }
-    vertex_t uv(const glm::vec2 &value) { uv_ = value; return *this; }
+    vertex_t &pos(const glm::vec3 &value) { pos_ = value; return *this; }
+    vertex_t &normal(const glm::vec3 &value) { normal_ = value; return *this; }
+    vertex_t &uv(const glm::vec2 &value) { uv_ = value; return *this; }
+    vertex_t &color(const glm::vec4 &value) {}
   private:
+    // The physical layout of these data are reflected in the result of getFormat()
     glm::vec3 pos_;
     glm::vec3 normal_;
     glm::vec2 uv_;
@@ -495,7 +531,53 @@ struct simple_mesh_traits {
   typedef uint32_t index_t;
 };
 
+struct color_mesh_traits {
+  class vertex_t {
+  public:
+    vertex_t() {}
+
+    vertex_t(const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv, const glm::vec4 &color = glm::vec4(1.0f)) {
+      pos_ = pos;
+      normal_ = normal;
+      uv_ = uv;
+      color_ = color;
+    }
+
+    // Lerp constructor.
+    vertex_t(const vertex_t &lhs, const vertex_t &rhs, float lambda) {
+      pos_ = glm::mix(lhs.pos_, rhs.pos_, lambda);
+      normal_ = glm::mix(lhs.normal_, rhs.normal_, lambda);
+      uv_ = glm::mix(lhs.uv_, rhs.uv_, lambda);
+      color_ = glm::mix(lhs.color_, rhs.color_, lambda);
+    }
+
+    glm::vec3 pos() const { return pos_; }
+    glm::vec3 normal() const { return normal_; }
+    glm::vec2 uv() const { return uv_; }
+    glm::vec4 color() const { return color_; }
+
+    vertex_t &pos(const glm::vec3 &value) { pos_ = value; return *this; }
+    vertex_t &normal(const glm::vec3 &value) { normal_ = value; return *this; }
+    vertex_t &uv(const glm::vec2 &value) { uv_ = value; return *this; }
+    vertex_t &color(const glm::vec4 &value) { color_ = value; return *this; }
+  private:
+    // The physical layout of these data are reflected in the result of getFormat()
+    glm::vec3 pos_;
+    glm::vec3 normal_;
+    glm::vec2 uv_;
+    glm::vec4 color_;
+  };
+
+  static const char *getFormat() {
+    return "pos:3f,normal:3f,uv:2f,color:4f";
+  }
+
+  typedef uint32_t index_t;
+};
+
+typedef basic_mesh<pos_mesh_traits> pos_mesh;
 typedef basic_mesh<simple_mesh_traits> simple_mesh;
+typedef basic_mesh<color_mesh_traits> color_mesh;
 
 static void parse_attrib(int &n, char &type, char *name, size_t name_len, const char *&format) {
   char *dp = name;

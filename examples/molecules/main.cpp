@@ -14,6 +14,8 @@
 #include <fstream>
 #include <cmath>
 #include <algorithm>
+#include <thread>
+#include <future>
 
 #include "2ptc.h"
 
@@ -30,6 +32,27 @@ const char *fmt(const char *str, P... params) {
   return buf;
 }
 
+template <class F>
+void par_for(int begin, int end, F fn) {
+  std::atomic<int> idx;
+  idx = begin;
+  int num_cpus = std::thread::hardware_concurrency();
+  printf("%d cpus\n", num_cpus);
+  std::vector<std::future<void>> futures(num_cpus);
+  for (int cpu = 0; cpu != num_cpus; ++cpu) {
+    futures[cpu] = std::async(std::launch::async, [cpu, &idx, end, &fn]() {
+      for (;;) {
+        int i = idx++;
+        if (i >= end) break;
+        fn(i);
+      }
+    });
+  }
+  for (int cpu = 0; cpu != num_cpus; ++cpu) {
+    futures[cpu].get();
+  }
+}
+
 int main() {
   meshutils::pdb_file pdb(
     (const uint8_t*)__2ptc_pdb, (const uint8_t*)__2ptc_pdb + sizeof(__2ptc_pdb)
@@ -42,7 +65,14 @@ int main() {
     std::vector<glm::vec3> pos = pdb.pos(chainID);
     std::vector<float> radii = pdb.radii(chainID);
 
-    meshutils::simple_mesh atoms;
+    // adjust centre of gravity
+    glm::vec3 sum = std::accumulate(pos.begin(), pos.end(), glm::vec3(0, 0, 0));
+    glm::vec3 cofg = sum * (1.0f/pos.size());
+    for (auto &p : pos) {
+      p -= cofg;
+    }
+
+    /*meshutils::simple_mesh atoms;
     for (auto p : pos) {
       glm::mat4 mx;
       mx[3].x = p.x;
@@ -51,7 +81,7 @@ int main() {
       atoms.addCube(mx);
     }
     std::ofstream atoms_file(fmt("atoms_%c.ply", chainID));
-    encoder.encode(atoms, atoms_file);
+    encoder.encode(atoms, atoms_file);*/
 
     glm::vec3 min = pos[0];
     glm::vec3 max = pos[0];
@@ -83,7 +113,7 @@ int main() {
     };
 
     std::vector<float> accessible((xdim+1)*(ydim+1)*(zdim+1));
-    for (int z = 0; z != zdim; ++z) {
+    par_for(0, zdim, [&](int z) {
       printf("z=%d\n", z);
       for (int y = 0; y != ydim; ++y) {
         for (int x = 0; x != xdim; ++x) {
@@ -99,7 +129,7 @@ int main() {
           accessible[idx(x, y, z)] = value;
         }
       }
-    }
+    });
 
     auto fn = [&accessible, idx](int x, int y, int z) {
       return accessible[idx(x, y, z)];
@@ -117,7 +147,7 @@ int main() {
     encoder.encode(amesh, of);
 
     std::vector<float> excluded((xdim+1)*(ydim+1)*(zdim+1));
-    for (int z = 0; z != zdim; ++z) {
+    par_for(0, zdim, [&](int z) {
       printf("z=%d\n", z);
       for (int y = 0; y != ydim; ++y) {
         for (int x = 0; x != xdim; ++x) {
@@ -138,8 +168,7 @@ int main() {
           excluded[idx(x, y, z)] = value;
         }
       }
-    }
-
+    });
 
     auto efn = [&excluded, idx](int x, int y, int z) {
       return excluded[idx(x, y, z)];
@@ -158,5 +187,4 @@ int main() {
 
     encoder.encode(emesh, eof);
   }
-
 }
