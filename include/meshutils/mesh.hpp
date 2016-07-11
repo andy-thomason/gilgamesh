@@ -194,14 +194,14 @@ public:
       for (int j = 0; j != ydim; ++j) {
         for (int i = 0; i != xdim; ++i) {
           int idx = (k * ydim + j) * xdim + i;
+          float v0 = fn(i, j, k);
           float fi = (float)i;
           float fj = (float)j;
           float fk = (float)k;
-          float v0 = fn(fi, fj, fk);
 
           // x edges
           if (i != xdim-1) {
-            float v1 = fn(fi+1, fj, fk);
+            float v1 = fn(i+1, j, k);
             if (v0 * v1 <= 0) {
               float lambda = v0 / (v0 - v1);
               edge_indices[idx*3+0] = (int)vertices_.size();
@@ -211,7 +211,7 @@ public:
 
           // y edges
           if (j != ydim-1) {
-            float v1 = fn(fi, fj+1, fk);
+            float v1 = fn(i, j+1, k);
             if (v0 * v1 <= 0) {
               float lambda = v0 / (v0 - v1);
               edge_indices[idx*3+1] = (int)vertices_.size();
@@ -221,7 +221,7 @@ public:
 
           // z edges
           if (k != zdim-1) {
-            float v1 = fn(fi, fj, fk+1);
+            float v1 = fn(i, j, k+1);
             if (v0 * v1 <= 0) {
               float lambda = v0 / (v0 - v1);
               edge_indices[idx*3+2] = (int)vertices_.size();
