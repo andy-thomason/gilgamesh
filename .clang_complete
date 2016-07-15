@@ -1,0 +1,5 @@
+-I/usr/include
+-I/usr/include/c++/5
+-Iexternal/glm
+-Iexternal/minizip/include
+

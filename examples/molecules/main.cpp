@@ -6,10 +6,13 @@
 // surfaces for molecules.
 //
 
+
 #include <meshutils/pdb_file.hpp>
 #include <meshutils/mesh.hpp>
 #include <meshutils/encoders/ply_encoder.hpp>
+
 #include <glm/glm.hpp>
+
 #include <ostream>
 #include <fstream>
 #include <cmath>
@@ -17,9 +20,13 @@
 #include <thread>
 #include <future>
 
+
 #include "2ptc.h"
 
 #undef min
+
+
+
 
 inline std::ostream & operator<<(std::ostream &os, const glm::vec3 &v) {
   return os << "vec3(" << v.x << ", " << v.y << ", " << v.z << ")";

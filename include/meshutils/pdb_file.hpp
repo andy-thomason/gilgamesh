@@ -15,7 +15,9 @@
 #include <cstring>
 #include <vector>
 #include <cmath>
+
 #include <glm/glm.hpp>
+
 
 // https://en.wikipedia.org/wiki/Protein_Data_Bank_(file_format)
 namespace meshutils {
@@ -94,7 +96,7 @@ namespace meshutils {
       for (size_t i = 0; i != 128; ++i) {
         if (used[i]) result.push_back((char)i);
       }
-      return result;
+      return std::move(result);
     }
 
     std::vector<glm::vec3> pos(char chainID = '?') const {
@@ -104,7 +106,7 @@ namespace meshutils {
           result.push_back(glm::vec3(p.x(), p.y(), p.z()));
         }
       }
-      return result;
+      return std::move(result);
     }
 
     // Van Der Walls radii of atoms
@@ -115,7 +117,7 @@ namespace meshutils {
           result.push_back(vdvRadius(p.name()));
         }
       }
-      return result;
+      return std::move(result);
     }
   public:
   private:
