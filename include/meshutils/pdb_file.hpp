@@ -46,7 +46,7 @@ namespace meshutils {
       // 77 - 78        LString(2)    element      Element symbol, right-justified.
       // 79 - 80        LString(2)    charge       Charge  on the atom.
       int serial() const { return atoi(p_ - 1 + 7, p_ + 11); }
-      std::string name() const { return std::string(p_ - 1 + 13, p_ + 16); }
+      std::string atomName() const { return std::string(p_ - 1 + 13, p_ + 16); }
       char altLoc() const { return (char)p_[-1+17]; }
       std::string resName() const { return std::string(p_ - 1 + 18, p_ + 20); }
       char chainID() const { return (char)p_[-1+22]; }
@@ -114,12 +114,43 @@ namespace meshutils {
       std::vector<float> result;
       for (auto &p : atoms_) {
         if (chainID == '?' || p.chainID() == chainID) {
-          result.push_back(vdvRadius(p.name()));
+          result.push_back(vdvRadius(p.element()));
         }
       }
       return std::move(result);
     }
-  public:
+
+    std::vector<glm::vec4> color(char chainID = '?') const {
+      std::vector<glm::vec4> result;
+      for (auto &p : atoms_) {
+        if (chainID == '?' || p.chainID() == chainID) {
+          std::string atom = p.atomName();
+          std::string resName = p.resName();
+          if (
+            (atom == "NZ " && resName == "LYS") ||
+            (atom == "NH1" && resName == "ARG") ||
+            (atom == "NH2" && resName == "ARG") ||
+            (atom == "ND1" && resName == "HIS") ||
+            (atom == "NE2" && resName == "HIS")
+          ) {
+            // Positive: blue
+            result.push_back(glm::vec4(0, 0, 1, 1));
+          } else if (
+            (atom == "OE1" && resName == "GLU") ||
+            (atom == "OE2" && resName == "GLU") ||
+            (atom == "OD1" && resName == "ASP") ||
+            (atom == "OD2" && resName == "ASP")
+          ) {
+            // Negative: red
+            result.push_back(glm::vec4(1, 0, 0, 1));
+          } else {
+            // default: white
+            result.push_back(glm::vec4(1, 1, 1, 1));
+          }
+        }
+      }
+      return std::move(result);
+    }
   private:
     std::vector<atom> atoms_;
     std::vector<atom> hetatoms_;
