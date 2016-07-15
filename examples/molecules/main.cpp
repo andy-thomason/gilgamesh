@@ -37,12 +37,13 @@ void par_for(int begin, int end, F fn) {
   std::atomic<int> idx;
   idx = begin;
   int num_cpus = std::thread::hardware_concurrency();
-  printf("%d cpus\n", num_cpus);
   std::vector<std::future<void>> futures(num_cpus);
   for (int cpu = 0; cpu != num_cpus; ++cpu) {
     futures[cpu] = std::async(std::launch::async, [cpu, &idx, end, &fn]() {
       for (;;) {
         int i = idx++;
+        printf("[%d %d]", i, cpu);
+        fflush(stdout);
         if (i >= end) break;
         fn(i);
       }
@@ -51,9 +52,11 @@ void par_for(int begin, int end, F fn) {
   for (int cpu = 0; cpu != num_cpus; ++cpu) {
     futures[cpu].get();
   }
+  printf("\n");
 }
 
 int main() {
+  puts(CMAKE_SOURCE);
   meshutils::pdb_file pdb(
     (const uint8_t*)__2ptc_pdb, (const uint8_t*)__2ptc_pdb + sizeof(__2ptc_pdb)
   );
@@ -72,17 +75,6 @@ int main() {
       p -= cofg;
     }
 
-    /*meshutils::simple_mesh atoms;
-    for (auto p : pos) {
-      glm::mat4 mx;
-      mx[3].x = p.x;
-      mx[3].y = p.y;
-      mx[3].z = p.z;
-      atoms.addCube(mx);
-    }
-    std::ofstream atoms_file(fmt("atoms_%c.ply", chainID));
-    encoder.encode(atoms, atoms_file);*/
-
     glm::vec3 min = pos[0];
     glm::vec3 max = pos[0];
     for (size_t i = 0; i != pos.size(); ++i) {
@@ -97,7 +89,7 @@ int main() {
     }
 
     float water_radius = 1.0f;
-    float grid_spacing = 0.25;
+    float grid_spacing = 0.5;
     float recip_gs = 1.0f / grid_spacing;
 
     min -= water_radius;
@@ -114,7 +106,6 @@ int main() {
 
     std::vector<float> accessible((xdim+1)*(ydim+1)*(zdim+1));
     par_for(0, zdim, [&](int z) {
-      printf("z=%d\n", z);
       for (int y = 0; y != ydim; ++y) {
         for (int x = 0; x != xdim; ++x) {
           glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
@@ -139,16 +130,16 @@ int main() {
       glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
       glm::vec3 normal(1, 0, 0);
       glm::vec2 uv(0, 0);
-      return meshutils::simple_mesh::vertex_t(xyz, normal, uv);
+      glm::vec4 color(1, 0, 0, 1);
+      return meshutils::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 
-    meshutils::simple_mesh amesh(xdim, ydim, zdim, fn, gen);
+    meshutils::color_mesh amesh(xdim, ydim, zdim, fn, gen);
     std::ofstream of(fmt("accessible_%c.ply", chainID));
     encoder.encode(amesh, of);
 
     std::vector<float> excluded((xdim+1)*(ydim+1)*(zdim+1));
     par_for(0, zdim, [&](int z) {
-      printf("z=%d\n", z);
       for (int y = 0; y != ydim; ++y) {
         for (int x = 0; x != xdim; ++x) {
           glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
@@ -178,10 +169,11 @@ int main() {
       glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
       glm::vec3 normal(1, 0, 0);
       glm::vec2 uv(0, 0);
-      return meshutils::simple_mesh::vertex_t(xyz, normal, uv);
+      glm::vec4 color(1, 0, 0, 1);
+      return meshutils::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 
-    meshutils::simple_mesh emesh(xdim, ydim, zdim, efn, egen);
+    meshutils::color_mesh emesh(xdim, ydim, zdim, efn, egen);
 
     std::ofstream eof(fmt("excluded_%c.ply", chainID));
 
