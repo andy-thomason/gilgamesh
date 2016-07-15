@@ -25,9 +25,6 @@
 
 #undef min
 
-
-
-
 inline std::ostream & operator<<(std::ostream &os, const glm::vec3 &v) {
   return os << "vec3(" << v.x << ", " << v.y << ", " << v.z << ")";
 }
@@ -63,10 +60,17 @@ void par_for(int begin, int end, F fn) {
 }
 
 int main() {
-  puts(CMAKE_SOURCE);
-  meshutils::pdb_file pdb(
-    (const uint8_t*)__2ptc_pdb, (const uint8_t*)__2ptc_pdb + sizeof(__2ptc_pdb)
-  );
+  std::ifstream file(CMAKE_SOURCE "/examples/data/2PTC.pdb", std::ios_base::binary);
+  std::vector<uint8_t> text;
+  if (!file.eof() && !file.fail()) {
+    file.seekg(0, std::ios_base::end);
+    text.resize(file.tellg());
+
+    file.seekg(0, std::ios_base::beg);
+    file.read((char*)text.data(), text.size());
+  } 
+  
+  meshutils::pdb_file pdb(text.data(), text.data() + text.size());
 
   meshutils::ply_encoder encoder;
   
