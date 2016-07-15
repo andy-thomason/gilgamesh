@@ -9,7 +9,7 @@ ELSE(WIN32)
 ENDIF(WIN32)
 
 
-include_directories(${PROJECT_SOURCE_DIR}/include/ ${PROJECT_SOURCE_DIR}/external/)
+include_directories(${PROJECT_SOURCE_DIR}/include/ ${PROJECT_SOURCE_DIR}/external/minizip/include/ ${PROJECT_SOURCE_DIR}/external/glm/)
 
 add_subdirectory(examples)
 

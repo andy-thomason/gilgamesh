@@ -14,7 +14,7 @@
 //#include <filesystem>
 #include <vector>
 
-#include <minizip/decoder.hpp>
+#include <minizip/deflate_decoder.hpp>
 #include <glm/glm.hpp>
 
 // see https://code.blender.org/2013/08/fbx-binary-file-format-specification/
@@ -153,7 +153,7 @@ namespace meshutils {
       }
 
       template <class Type, char Kind>
-      bool getArray(std::vector<Type> &result, const minizip::decoder &decoder) const {
+      bool getArray(std::vector<Type> &result, const minizip::deflate_decoder &decoder) const {
         Type *begin = nullptr;
         Type *end = nullptr;
         if (kind() == Kind) {
@@ -241,7 +241,7 @@ namespace meshutils {
       typedef typename MeshTraits::vertex_t vertex_t;
       typedef typename MeshTraits::index_t index_t;
 
-      minizip::decoder decoder;
+      minizip::deflate_decoder decoder;
 
       std::vector<double> fbxVertices;
       std::vector<double> fbxNormals;
