@@ -164,14 +164,12 @@ int main() {
     };
 
     meshutils::pos_mesh amesh(xdim, ydim, zdim, fn, gen);
-    std::ofstream of(fmt("accessible_%c.ply", chainID));
-    encoder.encode(amesh, of);
 
     std::vector<glm::vec3> zsorter;
 
-    auto *avertices = amesh.vertices();
-    for (size_t i = 0; i != amesh.numVertices(); ++i) {
-      zsorter.push_back(avertices[i].pos());
+    auto &avertices = amesh.vertices();
+    for (auto &v : avertices) {
+      zsorter.push_back(v.pos());
     }
 
     auto cmpz = [](const glm::vec3 &a, const glm::vec3 &b) { return a.z < b.z; };
@@ -187,20 +185,18 @@ int main() {
       float zpos = z * grid_spacing + min.z;
       auto p = std::lower_bound( zsorter.begin(), zsorter.end(), glm::vec3(0, 0, zpos - (water_radius + grid_spacing)), cmpz);
       auto q = std::upper_bound( zsorter.begin(), zsorter.end(), glm::vec3(0, 0, zpos + (water_radius + grid_spacing)), cmpz);
-      //printf("z=%d zpos=%f p->z=%f q->z=%f %d\n", z, zpos, p->z, q->z, (int)(q - p));
 
       for (int y = 0; y != ydim+1; ++y) {
         float ypos = y * grid_spacing + min.y;
 
+        // filter by y position
         ysorter.clear();
         for (auto r = p; r != q; ++r) {
           if (std::abs(r->y - ypos) <= water_radius + grid_spacing) {
             ysorter.push_back(*r);
           }
         }
-        //printf("%d %d %d\n", y, z, int(ysorter.size()));
 
-        // todo: could also filter by y position.
         for (int x = 0; x != xdim+1; ++x) {
           glm::vec3 xyz(x * grid_spacing + min.x, ypos, zpos);
           float value = 1e37f;
@@ -218,7 +214,6 @@ int main() {
           } else {
             value = outside_value;
           }
-          //if (z == 50 && y == 50) printf("%d %d %d %f\n", x, y, z, value);
           excluded[idx(x, y, z)] = value;
         }
       }
@@ -251,8 +246,7 @@ int main() {
 
     meshutils::color_mesh emesh(xdim, ydim, zdim, efn, egen);
 
-    std::ofstream eof(fmt("excluded_%c.ply", chainID));
-
-    encoder.encode(emesh, eof);
+    std::ofstream eof(fmt("excluded_%c.ply", chainID), std::ios::binary);
+    encoder.encode(emesh, eof, true, "pc");
   }
 }

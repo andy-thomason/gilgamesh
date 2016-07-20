@@ -30,12 +30,10 @@ public:
   basic_mesh() {
   }
 
-  const vertex_t *vertices() const { return vertices_.data(); }
-  size_t numVertices() const { return vertices_.size(); }
+  const std::vector<vertex_t> &vertices() const { return vertices_; }
   size_t vertexSize() const { return sizeof(vertex_t); }
 
-  const index_t *indices() const { return indices_.data(); }
-  size_t numIndices() const { return indices_.size(); }
+  const std::vector<index_t> &indices() const { return indices_; }
   size_t indexSize() const { return sizeof(index_t); }
 
   basic_mesh &operator=(basic_mesh &&rhs) {
