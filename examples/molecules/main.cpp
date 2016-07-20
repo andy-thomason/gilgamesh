@@ -7,8 +7,8 @@
 //
 
 
-#include <meshutils/pdb_file.hpp>
 #include <meshutils/mesh.hpp>
+#include <meshutils/decoders/pdb_decoder.hpp>
 #include <meshutils/encoders/ply_encoder.hpp>
 
 #include <glm/glm.hpp>

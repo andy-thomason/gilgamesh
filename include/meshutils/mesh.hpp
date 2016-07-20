@@ -14,7 +14,6 @@
 #include <cstdio>
 #include <ostream>
 #include <algorithm>
-#include <meshutils/fbx_file.hpp>
 #include <stdio.h>
 
 namespace meshutils {
@@ -29,12 +28,6 @@ public:
 
   // empty basic_mesh
   basic_mesh() {
-  }
-
-  // load an FBX file
-  basic_mesh(const std::string &filename) {
-    fbx_file fbx(filename);
-    fbx.loadFirstMesh<traits_t>(vertices_, indices_);
   }
 
   const vertex_t *vertices() const { return vertices_.data(); }
