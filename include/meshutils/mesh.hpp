@@ -446,6 +446,12 @@ private:
   std::vector<index_t> indices_;
 };
 
+struct attribute {
+  const char *name;
+  int number_of_channels;
+  char type; // see https://docs.python.org/2/library/struct.html
+};
+
 // position only mesh
 struct pos_mesh_traits {
   class vertex_t {
@@ -521,8 +527,13 @@ struct simple_mesh_traits {
     glm::vec2 uv_;
   };
 
-  static const char *getFormat() {
-    return "pos:3f,normal:3f,uv:2f";
+  const attribute *getFormat() {
+    static const attribute format[] = {
+      "pos", 3, 'f',
+      "normal", 3, 'f',
+      "uv", 2, 'f',
+      nullptr, 0, '\0'
+    };
   }
 
   typedef uint32_t index_t;
@@ -566,8 +577,14 @@ struct color_mesh_traits {
     glm::vec4 color_;
   };
 
-  static const char *getFormat() {
-    return "pos:3f,normal:3f,uv:2f,color:4f";
+  const attribute *getFormat() {
+    static const attribute format[] = {
+      "pos", 3, 'f',
+      "normal", 3, 'f',
+      "uv", 2, 'f',
+      "color", 4, 'f',
+      nullptr, 0, '\0'
+    };
   }
 
   typedef uint32_t index_t;
@@ -577,27 +594,6 @@ typedef basic_mesh<pos_mesh_traits> pos_mesh;
 typedef basic_mesh<simple_mesh_traits> simple_mesh;
 typedef basic_mesh<color_mesh_traits> color_mesh;
 
-static void parse_attrib(int &n, char &type, char *name, size_t name_len, const char *&format) {
-  char *dp = name;
-  char *ep = name + name_len - 1;
-  const char *fp = format;
-  while (*fp != ':' && *fp != 0) {
-    if (dp < ep) *dp++ = *fp;
-    ++fp;
-  }
-  *dp = 0;
-
-  if (*fp == ':') ++fp;
-
-  n = 0;
-  while (*fp >= '0' && *fp <= '9') n = n * 10 + *fp++ - '0';
-
-  type = *fp;
-  if (*fp) ++fp;
-  if (*fp == ',') ++fp;
-  format = fp;
-}
-  
 } // vku
 
 #endif

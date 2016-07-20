@@ -37,9 +37,6 @@ const char *fmt(const char *str, P... params) {
 
 template <class F>
 void par_for(int begin, int end, F fn) {
-  //for (int i = begin; i != end; ++i) fn(i);
-  //return;
-
   std::atomic<int> idx;
   idx = begin;
   int num_cpus = std::thread::hardware_concurrency();
@@ -247,6 +244,6 @@ int main() {
     meshutils::color_mesh emesh(xdim, ydim, zdim, efn, egen);
 
     std::ofstream eof(fmt("excluded_%c.ply", chainID), std::ios::binary);
-    encoder.encode(emesh, eof, true, "pc");
+    encoder.encode(emesh, eof, false, "pc");
   }
 }
