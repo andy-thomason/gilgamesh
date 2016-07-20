@@ -5,8 +5,8 @@
 // Fbx file decoder
 // 
 
-#ifndef VKU_FBX_FILE_INCLUDED
-#define VKU_FBX_FILE_INCLUDED
+#ifndef VKU_fbx_decoder_INCLUDED
+#define VKU_fbx_decoder_INCLUDED
 
 #include <iostream>
 #include <fstream>
@@ -22,7 +22,7 @@
 
 namespace meshutils {
 
-  class fbx_file {
+  class fbx_decoder {
     enum { debug = 0 };
 
     static inline std::uint8_t u1(const char *p) {
@@ -75,7 +75,7 @@ namespace meshutils {
       node begin() const { size_t new_offset = offset_ + 13 + property_list_len() + len(), end = end_offset(); return node(begin_, new_offset == end ? end-13 : new_offset); }
       node end() const { return node(begin_, end_offset() - 13); }
       node &operator*() { return *this; }
-      fbx_file::props get_props() { return fbx_file::props(begin_, offset_); }
+      fbx_decoder::props get_props() { return fbx_decoder::props(begin_, offset_); }
 
       size_t offset() const { return offset_; }
       size_t end_offset() const { return u4(begin_ + offset_); }
@@ -185,7 +185,7 @@ namespace meshutils {
       const char *begin_;
     };
   public:
-    fbx_file(const std::string &filename) {
+    fbx_decoder(const std::string &filename) {
       std::ifstream f(filename, std::ios_base::binary);
       if (f.good()) {
         f.seekg(0, std::ios_base::end);
@@ -196,7 +196,7 @@ namespace meshutils {
       }
     }
 
-    fbx_file(const char *begin, const char *end) { init(begin, end); }
+    fbx_decoder(const char *begin, const char *end) { init(begin, end); }
 
     node begin() const { return node(begin_, 27); }
     node end() const { return node(begin_, end_offset); }
@@ -296,10 +296,10 @@ namespace meshutils {
                 }
               }
 
-              auto normalMapping = fbx_file::decodeMapping(fbxNormalMapping);
-              auto uvMapping = fbx_file::decodeMapping(fbxUVMapping);
-              auto normalRef = fbx_file::decodeRef(fbxNormalRef);
-              auto uvRef = fbx_file::decodeRef(fbxUVRef);
+              auto normalMapping = fbx_decoder::decodeMapping(fbxNormalMapping);
+              auto uvMapping = fbx_decoder::decodeMapping(fbxUVMapping);
+              auto normalRef = fbx_decoder::decodeRef(fbxNormalRef);
+              auto uvRef = fbx_decoder::decodeRef(fbxUVRef);
 
               if (debug) printf("%s %s\n", fbxNormalMapping.c_str(), fbxUVMapping.c_str());
               if (debug) printf("%s %s\n", fbxNormalRef.c_str(), fbxUVRef.c_str());
@@ -307,18 +307,18 @@ namespace meshutils {
 
               // map the fbx data to real vertices
               for (size_t i = 0; i != fbxIndices.size(); ++i) {
-                size_t ni = normalRef == fbx_file::Ref::IndexToDirect ? fbxNormalIndices[i] : i;
-                size_t uvi = uvRef == fbx_file::Ref::IndexToDirect ? fbxUVIndices[i] : i;
+                size_t ni = normalRef == fbx_decoder::Ref::IndexToDirect ? fbxNormalIndices[i] : i;
+                size_t uvi = uvRef == fbx_decoder::Ref::IndexToDirect ? fbxUVIndices[i] : i;
                 int32_t vi = fbxIndices[i];
                 if (vi < 0) vi = -1 - vi;
 
                 glm::vec3 pos(fbxVertices[vi*3+0], fbxVertices[vi*3+1], fbxVertices[vi*3+2]);
                 glm::vec3 normal(1, 0, 0);
                 glm::vec2 uv(0, 0);
-                if (normalMapping == fbx_file::Mapping::ByPolygonVertex) {
+                if (normalMapping == fbx_decoder::Mapping::ByPolygonVertex) {
                   normal = glm::vec3(fbxNormals[ni*3+0], fbxNormals[ni*3+1], fbxNormals[ni*3+2]);
                 }
-                if (uvMapping == fbx_file::Mapping::ByPolygonVertex) {
+                if (uvMapping == fbx_decoder::Mapping::ByPolygonVertex) {
                   uv = glm::vec2(fbxUVs[uvi*2+0], fbxUVs[uvi*2+1]);
                 }
                 vertices.emplace_back(pos, normal, uv);
@@ -380,7 +380,7 @@ namespace meshutils {
       }
     }
 
-    friend std::ostream &operator<<(std::ostream &os, const fbx_file &fbx);
+    friend std::ostream &operator<<(std::ostream &os, const fbx_decoder &fbx);
 
     void bad_fbx() { throw std::runtime_error("bad fbx"); }
 
@@ -391,7 +391,7 @@ namespace meshutils {
     const char *end_;
   };
 
-  inline std::ostream &operator<<(std::ostream &os, const fbx_file &fbx) {
+  inline std::ostream &operator<<(std::ostream &os, const fbx_decoder &fbx) {
     for (auto p : fbx) {
       fbx.dump(os, p, 0);
     }

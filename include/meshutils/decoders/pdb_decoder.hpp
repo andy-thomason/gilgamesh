@@ -6,8 +6,8 @@
 // 
 // PDB files are Fortran-style text files containing positions of atoms in molecules.
 
-#ifndef MESHUTILS_PDB_FILE_INCLUDED
-#define MESHUTILS_PDB_FILE_INCLUDED
+#ifndef MESHUTILS_pdb_decoder_INCLUDED
+#define MESHUTILS_pdb_decoder_INCLUDED
 
 #include <iostream>
 #include <cstdint>
@@ -21,7 +21,7 @@
 
 // https://en.wikipedia.org/wiki/Protein_Data_Bank_(file_format)
 namespace meshutils {
-  class pdb_file {
+  class pdb_decoder {
   public:
     class atom {
       const uint8_t *p_;
@@ -61,7 +61,7 @@ namespace meshutils {
       std::string charge() const { return std::string(p_ - 1 + 79, p_ + 80); }
     };
 
-    pdb_file(const uint8_t *begin, const uint8_t *end) {
+    pdb_decoder(const uint8_t *begin, const uint8_t *end) {
       for (const uint8_t *p = begin; p != end; ) {
         const uint8_t *eol = p;
         while (eol != end && *eol != '\n') ++eol;

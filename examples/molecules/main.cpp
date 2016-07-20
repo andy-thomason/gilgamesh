@@ -72,7 +72,7 @@ int main() {
     file.read((char*)text.data(), text.size());
   } 
   
-  meshutils::pdb_file pdb(text.data(), text.data() + text.size());
+  meshutils::pdb_decoder pdb(text.data(), text.data() + text.size());
 
   meshutils::ply_encoder encoder;
   
