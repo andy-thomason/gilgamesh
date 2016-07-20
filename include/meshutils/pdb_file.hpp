@@ -120,26 +120,26 @@ namespace meshutils {
       return std::move(result);
     }
 
-    std::vector<glm::vec4> color(char chainID = '?') const {
+    std::vector<glm::vec4> colorsByFunction(char chainID = '?') const {
       std::vector<glm::vec4> result;
       for (auto &p : atoms_) {
         if (chainID == '?' || p.chainID() == chainID) {
           std::string atom = p.atomName();
           std::string resName = p.resName();
           if (
-            (atom == "NZ " && resName == "LYS") ||
-            (atom == "NH1" && resName == "ARG") ||
-            (atom == "NH2" && resName == "ARG") ||
-            (atom == "ND1" && resName == "HIS") ||
-            (atom == "NE2" && resName == "HIS")
+            (atom == " NZ " && resName == "LYS") ||
+            (atom == " NH1" && resName == "ARG") ||
+            (atom == " NH2" && resName == "ARG") ||
+            (atom == " ND1" && resName == "HIS") ||
+            (atom == " NE2" && resName == "HIS")
           ) {
             // Positive: blue
             result.push_back(glm::vec4(0, 0, 1, 1));
           } else if (
-            (atom == "OE1" && resName == "GLU") ||
-            (atom == "OE2" && resName == "GLU") ||
-            (atom == "OD1" && resName == "ASP") ||
-            (atom == "OD2" && resName == "ASP")
+            (atom == " OE1" && resName == "GLU") ||
+            (atom == " OE2" && resName == "GLU") ||
+            (atom == " OD1" && resName == "ASP") ||
+            (atom == " OD2" && resName == "ASP")
           ) {
             // Negative: red
             result.push_back(glm::vec4(1, 0, 0, 1));

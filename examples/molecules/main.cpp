@@ -76,6 +76,7 @@ int main() {
   for (char chainID : chains) {
     std::vector<glm::vec3> pos = pdb.pos(chainID);
     std::vector<float> radii = pdb.radii(chainID);
+    std::vector<glm::vec4> colors = pdb.colorsByFunction(chainID);
 
     // adjust centre of gravity
     glm::vec3 sum = std::accumulate(pos.begin(), pos.end(), glm::vec3(0, 0, 0));
@@ -97,12 +98,12 @@ int main() {
       max_radius = std::max(max_radius, r);
     }
 
-    float water_radius = 1.0f;
-    float grid_spacing = 0.5;
+    float water_radius = 2.0f;
+    float grid_spacing = 0.25;
     float recip_gs = 1.0f / grid_spacing;
 
-    min -= water_radius;
-    max += water_radius;
+    min -= water_radius + max_radius;
+    max += water_radius + max_radius;
 
     int xdim = (max.x - min.x) * recip_gs + 1;
     int ydim = (max.y - min.y) * recip_gs + 1;
@@ -114,16 +115,16 @@ int main() {
     };
 
     std::vector<float> accessible((xdim+1)*(ydim+1)*(zdim+1));
-    par_for(0, zdim, [&](int z) {
-      for (int y = 0; y != ydim; ++y) {
-        for (int x = 0; x != xdim; ++x) {
+    par_for(0, zdim+1, [&](int z) {
+      for (int y = 0; y != ydim+1; ++y) {
+        for (int x = 0; x != xdim+1; ++x) {
           glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
           float value = 1e37f;
           for (size_t i = 0; i != pos.size(); ++i) {
             glm::vec3 p = pos[i];
             float r = radii[i];
             float d2 = glm::dot(xyz - p, xyz - p);
-            float r2 = (r+water_radius) * (r+water_radius);
+            float r2 = (r + water_radius) * (r + water_radius);
             value = std::min(value, d2 - r2);
           }
           accessible[idx(x, y, z)] = value;
@@ -135,37 +136,46 @@ int main() {
       return accessible[idx(x, y, z)];
     };
 
-    auto gen = [&accessible, grid_spacing, min](float x, float y, float z) {
+    auto gen = [&accessible, grid_spacing, min, idx](float x, float y, float z) {
       glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
-      glm::vec3 normal(1, 0, 0);
-      glm::vec2 uv(0, 0);
-      glm::vec4 color(1, 0, 0, 1);
-      return meshutils::color_mesh::vertex_t(xyz, normal, uv, color);
+      return meshutils::pos_mesh::vertex_t(xyz);
     };
 
-    meshutils::color_mesh amesh(xdim, ydim, zdim, fn, gen);
+    meshutils::pos_mesh amesh(xdim, ydim, zdim, fn, gen);
     std::ofstream of(fmt("accessible_%c.ply", chainID));
     encoder.encode(amesh, of);
 
+    std::vector<glm::vec3> apos;
+    auto *avertices = amesh.vertices();
+    for (size_t i = 0; i != amesh.numVertices(); ++i) {
+      apos.push_back(avertices[i].pos());
+    }
+    std::sort(
+      apos.begin(), apos.end(),
+      [](const glm::vec3 &a, const glm::vec3 &b) {
+        return a.z < b.z;
+      }
+    );
+
     std::vector<float> excluded((xdim+1)*(ydim+1)*(zdim+1));
-    par_for(0, zdim, [&](int z) {
-      for (int y = 0; y != ydim; ++y) {
-        for (int x = 0; x != xdim; ++x) {
+    float outside_value = -(water_radius * water_radius);
+    par_for(0, zdim+1, [&](int z) {
+      for (int y = 0; y != ydim+1; ++y) {
+        for (int x = 0; x != xdim+1; ++x) {
           glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
           float value = 1e37f;
           if (accessible[idx(x, y, z)] < 0) {
-            auto *vertices = amesh.vertices();
-            size_t num_vertices = amesh.numVertices();
-            for (size_t i = 0; i != num_vertices; ++i) {
-              glm::vec3 p = vertices[i].pos();
+            for (size_t i = 0; i != apos.size(); ++i) {
+              glm::vec3 &p = apos[i];
               float d2 = glm::dot(xyz - p, xyz - p);
               float r2 = (water_radius) * (water_radius);
               value = std::min(value, d2 - r2);
             }
           } else {
-            value = -1.0f;
+            value = outside_value;
           }
           excluded[idx(x, y, z)] = value;
+          if (z == 30 && y == 50) printf("%d %d %d %f\n", x, y, z, value);
         }
       }
     });
@@ -174,11 +184,11 @@ int main() {
       return excluded[idx(x, y, z)];
     };
 
-    auto egen = [&excluded, grid_spacing, min](float x, float y, float z) {
+    auto egen = [&excluded, grid_spacing, min, idx](float x, float y, float z) {
       glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
       glm::vec3 normal(1, 0, 0);
       glm::vec2 uv(0, 0);
-      glm::vec4 color(1, 0, 0, 1);
+      glm::vec4 color = glm::vec4(1, 1, 1, 1);
       return meshutils::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 

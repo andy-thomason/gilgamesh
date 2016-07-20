@@ -455,12 +455,17 @@ private:
   std::vector<index_t> indices_;
 };
 
+// position only mesh
 struct pos_mesh_traits {
   class vertex_t {
   public:
     vertex_t() {}
 
-    vertex_t(const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv) {
+    vertex_t(const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv, const glm::vec4 &color = glm::vec4(1.0f)) {
+      pos_ = pos;
+    }
+
+    vertex_t(const glm::vec3 &pos) {
       pos_ = pos;
     }
 
@@ -490,12 +495,13 @@ struct pos_mesh_traits {
   typedef uint32_t index_t;
 };
 
+// position, normal and uv
 struct simple_mesh_traits {
   class vertex_t {
   public:
     vertex_t() {}
 
-    vertex_t(const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv) {
+    vertex_t(const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv, const glm::vec4 &color = glm::vec4(1.0f)) {
       pos_ = pos;
       normal_ = normal;
       uv_ = uv;
@@ -531,6 +537,7 @@ struct simple_mesh_traits {
   typedef uint32_t index_t;
 };
 
+// position, normal, uv and color
 struct color_mesh_traits {
   class vertex_t {
   public:
