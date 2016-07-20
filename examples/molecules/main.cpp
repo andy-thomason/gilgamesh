@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <thread>
 #include <future>
+#include <numeric>
 
 
 #undef min
@@ -62,7 +63,7 @@ int main() {
   std::vector<uint8_t> text;
   if (!file.eof() && !file.fail()) {
     file.seekg(0, std::ios_base::end);
-    text.resize(file.tellg());
+    text.resize((size_t)file.tellg());
 
     file.seekg(0, std::ios_base::beg);
     file.read((char*)text.data(), text.size());
@@ -105,9 +106,9 @@ int main() {
     min -= water_radius + max_radius;
     max += water_radius + max_radius;
 
-    int xdim = (max.x - min.x) * recip_gs + 1;
-    int ydim = (max.y - min.y) * recip_gs + 1;
-    int zdim = (max.z - min.z) * recip_gs + 1;
+    int xdim = int((max.x - min.x) * recip_gs + 1);
+    int ydim = int((max.y - min.y) * recip_gs + 1);
+    int zdim = int((max.z - min.z) * recip_gs + 1);
     printf("%d x %d x %d\n", xdim, ydim, zdim);
 
     auto idx = [xdim, ydim](int x, int y, int z) {

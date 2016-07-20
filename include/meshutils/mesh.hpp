@@ -277,14 +277,14 @@ public:
           //   10000000 means only vertex 7 is outside the surface.
           //   11111111 all vertices are outside the surface.
           // todo: the mask can be built incrementally.
-          float v000 = fn(fi, fj, fk);
-          float v100 = fn(fi+1, fj, fk);
-          float v010 = fn(fi, fj+1, fk);
-          float v110 = fn(fi+1, fj+1, fk);
-          float v001 = fn(fi, fj, fk+1);
-          float v101 = fn(fi+1, fj, fk+1);
-          float v011 = fn(fi, fj+1, fk+1);
-          float v111 = fn(fi+1, fj+1, fk+1);
+          float v000 = fn(i, j, k);
+          float v100 = fn(i+1, j, k);
+          float v010 = fn(i, j+1, k);
+          float v110 = fn(i+1, j+1, k);
+          float v001 = fn(i, j, k+1);
+          float v101 = fn(i+1, j, k+1);
+          float v011 = fn(i, j+1, k+1);
+          float v111 = fn(i+1, j+1, k+1);
 
           int mask = (
             (v000 < 0 ? 1 << 0 : 0) |
