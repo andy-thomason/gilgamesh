@@ -37,6 +37,9 @@ const char *fmt(const char *str, P... params) {
 
 template <class F>
 void par_for(int begin, int end, F fn) {
+  //for (int i = begin; i != end; ++i) fn(i);
+  //return;
+
   std::atomic<int> idx;
   idx = begin;
   int num_cpus = std::thread::hardware_concurrency();
@@ -86,6 +89,22 @@ int main() {
       p -= cofg;
     }
 
+    struct colored_atom {
+      glm::vec4 color;
+      glm::vec3 pos;
+      float radius;
+    };
+    std::vector<colored_atom> colored_atoms;
+
+    glm::vec4 white(1, 1, 1, 1);
+    for (size_t i = 0; i != colors.size(); ++i) {
+      if (colors[i] != white) {
+        colored_atom a = { colors[i], pos[i], radii[i] };
+        colored_atoms.push_back(a);
+      }
+    }
+    printf("chain %c, %d colored atoms\n", chainID, colored_atoms.size());
+
     glm::vec3 min = pos[0];
     glm::vec3 max = pos[0];
     for (size_t i = 0; i != pos.size(); ++i) {
@@ -100,7 +119,7 @@ int main() {
     }
 
     float water_radius = 2.0f;
-    float grid_spacing = 0.25;
+    float grid_spacing = 0.25f;
     float recip_gs = 1.0f / grid_spacing;
 
     min -= water_radius + max_radius;
@@ -117,9 +136,11 @@ int main() {
 
     std::vector<float> accessible((xdim+1)*(ydim+1)*(zdim+1));
     par_for(0, zdim+1, [&](int z) {
+      float zpos = z * grid_spacing + min.z;
       for (int y = 0; y != ydim+1; ++y) {
+        float ypos = y * grid_spacing + min.y;
         for (int x = 0; x != xdim+1; ++x) {
-          glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
+          glm::vec3 xyz(x * grid_spacing + min.x, ypos, zpos);
           float value = 1e37f;
           for (size_t i = 0; i != pos.size(); ++i) {
             glm::vec3 p = pos[i];
@@ -146,37 +167,59 @@ int main() {
     std::ofstream of(fmt("accessible_%c.ply", chainID));
     encoder.encode(amesh, of);
 
-    std::vector<glm::vec3> apos;
+    std::vector<glm::vec3> zsorter;
+
     auto *avertices = amesh.vertices();
     for (size_t i = 0; i != amesh.numVertices(); ++i) {
-      apos.push_back(avertices[i].pos());
+      zsorter.push_back(avertices[i].pos());
     }
-    std::sort(
-      apos.begin(), apos.end(),
-      [](const glm::vec3 &a, const glm::vec3 &b) {
-        return a.z < b.z;
-      }
-    );
+
+    auto cmpz = [](const glm::vec3 &a, const glm::vec3 &b) { return a.z < b.z; };
+    auto cmpy = [](const glm::vec3 &a, const glm::vec3 &b) { return a.y < b.y; };
+    std::sort(zsorter.begin(), zsorter.end(), cmpz);
 
     std::vector<float> excluded((xdim+1)*(ydim+1)*(zdim+1));
     float outside_value = -(water_radius * water_radius);
     par_for(0, zdim+1, [&](int z) {
+      std::vector<glm::vec3> ysorter;
+
+      // search only a band of z values in zpos +/- water_radius
+      float zpos = z * grid_spacing + min.z;
+      auto p = std::lower_bound( zsorter.begin(), zsorter.end(), glm::vec3(0, 0, zpos - (water_radius + grid_spacing)), cmpz);
+      auto q = std::upper_bound( zsorter.begin(), zsorter.end(), glm::vec3(0, 0, zpos + (water_radius + grid_spacing)), cmpz);
+      //printf("z=%d zpos=%f p->z=%f q->z=%f %d\n", z, zpos, p->z, q->z, (int)(q - p));
+
       for (int y = 0; y != ydim+1; ++y) {
+        float ypos = y * grid_spacing + min.y;
+
+        ysorter.clear();
+        for (auto r = p; r != q; ++r) {
+          if (std::abs(r->y - ypos) <= water_radius + grid_spacing) {
+            ysorter.push_back(*r);
+          }
+        }
+        //printf("%d %d %d\n", y, z, int(ysorter.size()));
+
+        // todo: could also filter by y position.
         for (int x = 0; x != xdim+1; ++x) {
-          glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
+          glm::vec3 xyz(x * grid_spacing + min.x, ypos, zpos);
           float value = 1e37f;
           if (accessible[idx(x, y, z)] < 0) {
-            for (size_t i = 0; i != apos.size(); ++i) {
-              glm::vec3 &p = apos[i];
-              float d2 = glm::dot(xyz - p, xyz - p);
-              float r2 = (water_radius) * (water_radius);
-              value = std::min(value, d2 - r2);
+            // find the closest point on the accessible mesh to xyz.
+            for (auto &r : ysorter) {
+              float d2 = glm::dot(xyz - r, xyz - r);
+              value = std::min(value, d2);
+            }
+            if (value == 1e37f) {
+              value = outside_value;
+            } else {
+              value -= (water_radius) * (water_radius);
             }
           } else {
             value = outside_value;
           }
+          //if (z == 50 && y == 50) printf("%d %d %d %f\n", x, y, z, value);
           excluded[idx(x, y, z)] = value;
-          if (z == 30 && y == 50) printf("%d %d %d %f\n", x, y, z, value);
         }
       }
     });
@@ -185,11 +228,24 @@ int main() {
       return excluded[idx(x, y, z)];
     };
 
-    auto egen = [&excluded, grid_spacing, min, idx](float x, float y, float z) {
+    auto egen = [&excluded, &colored_atoms, grid_spacing, min, idx](float x, float y, float z) {
       glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
       glm::vec3 normal(1, 0, 0);
       glm::vec2 uv(0, 0);
       glm::vec4 color = glm::vec4(1, 1, 1, 1);
+      for (size_t i = 0; i != colored_atoms.size(); ++i) {
+        glm::vec3 &pos = colored_atoms[i].pos;
+        float r = colored_atoms[i].radius;
+        float d2 = glm::dot(xyz - pos, xyz - pos);
+        float weight = (r*r*4 - d2) * 1.0f;
+        if (weight > 0) {
+          weight = std::max(0.0f, std::min(weight, 1.0f));
+          color += colored_atoms[i].color * weight;
+        }
+      }
+      color.w = 0;
+      color = glm::normalize(color);
+      color.w = 1;
       return meshutils::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 
