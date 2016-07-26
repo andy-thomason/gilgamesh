@@ -47,13 +47,15 @@ int main(int argc, char **argv) {
     const char *beg = (char*)encoder.bytes().data();
     const char *end = beg + encoder.bytes().size();
 
-    for (size_t i = 27; i != 1000; ++i) {
-      printf("[%02x %02x%s", text[i] & 0xff, beg[i] & 0xff, text[i] != beg[i] ? "]\n" : "]");
+    int err = 0;
+    for (size_t i = 3500; i != end-beg && err != 100; ++i) {
+      printf("[%d %02x %02x %c %s", i, text[i] & 0xff, beg[i] & 0xff, text[i] < ' ' || text[i] >= 0x7f ? '.' : text[i], text[i] != beg[i] ? "]\n" : "]");
+      err += text[i] != beg[i];
     }
     printf("\n");
 
-    meshutils::fbx_decoder fbx2(beg, end);
-    txt2 << fbx2;
+    //meshutils::fbx_decoder fbx2(beg, end);
+    //txt2 << fbx2;
     
     return 0;
   } else {

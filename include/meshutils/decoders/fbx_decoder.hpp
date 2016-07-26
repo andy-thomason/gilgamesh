@@ -118,6 +118,16 @@ namespace meshutils {
         return *this;
       }
 
+      char *ilist(char *d, char *e, const char *p, size_t al) {
+        d += snprintf(d, e-d, "{");
+        while (d < e && al--) {
+          int c = *p++ & 0xff;
+          d += snprintf(d, e-d, "0x%02x,", c);
+        }
+        d += snprintf(d, e-d, "}");
+        return d;
+      }
+
       operator std::string() {
         const char *p = begin_ + offset;
         size_t al;
@@ -131,11 +141,11 @@ namespace meshutils {
             case 'F': fv = u4(p); snprintf(tmp, sizeof(tmp), "%8f", (float&)(fv)); break;
             case 'D': dv = u8(p); snprintf(tmp, sizeof(tmp), "%10f", (double&)(dv)); break;
             case 'L': snprintf(tmp, sizeof(tmp), "%lld", (long long)u8(p)); break;
-            case 'f': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
-            case 'd': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
-            case 'l': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
-            case 'i': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
-            case 'b': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
+            case 'f': al = u4(p); d = ilist(d, e, p + 4, al*4); break;
+            case 'd': al = u4(p); d = ilist(d, e, p + 4, al*8); break;
+            case 'l': al = u4(p); d = ilist(d, e, p + 4, al*8); break;
+            case 'i': al = u4(p); d = ilist(d, e, p + 4, al*4); break;
+            case 'b': al = u4(p); d = ilist(d, e, p + 4, al*4); break;
             case 'S': {
               size_t size = al = u4(p);
               bool has_null = false;
@@ -156,16 +166,7 @@ namespace meshutils {
               }
               *d = 0;
             } break;
-            case 'R': {
-              size_t size = al = u4(p);
-              p += 4;
-              d += snprintf(d, e-d, "{");
-              while (d < e && al--) {
-                int c = *p++ & 0xff;
-                d += snprintf(d, e-d, "0x%02x,", c);
-              }
-              d += snprintf(d, e-d, "}");
-            } break;
+            case 'R': al = u4(p); d = ilist(d, e, p + 4, al); break;
             default: throw std::runtime_error("bad fbx property"); break;
         }
         return tmp;

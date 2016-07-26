@@ -1455,6 +1455,7 @@ end("Takes");
 
     std::vector<uint8_t> bytes_;
     std::vector<node> nodes;
+    bool just_ended = false;
 
     void u1(int value) {
       bytes_.push_back((uint8_t)value);
@@ -1476,6 +1477,7 @@ end("Takes");
     }
 
     void begin(const char *name) {
+      just_ended = false;
       printf("begin %x %s\n", (unsigned)bytes_.size(), name);
 
       node n = {};
@@ -1492,9 +1494,16 @@ end("Takes");
       nodes.push_back(n);
     }
 
+    void nullnode() {
+      for (int i = 0; i != 13; ++i) bytes_.push_back(0);
+    }
+
     void end(const char *name) {
       node &n = nodes.back();
-      //for (int i = 0; i != 13; ++i) bytes_.push_back(0);
+      if (just_ended || n.property_list_start == bytes_.size()) {
+      //if (just_ended) {
+        nullnode();
+      }
       uint32_t offset = (uint32_t)n.offset;
       uint32_t end_offset = (uint32_t)bytes_.size();
       bytes_[offset+0] = (uint8_t)(end_offset >> 0);
@@ -1514,6 +1523,7 @@ end("Takes");
         throw std::runtime_error("non-matching end");
       }
       nodes.pop_back();
+      just_ended = true;
 
     }
 
@@ -1627,7 +1637,7 @@ end("Takes");
       prop('S');
       u4((int)size);
       while (size--) {
-        u4(*value++);
+        u1(*value++);
       }
       propend();
     }
@@ -1636,7 +1646,7 @@ end("Takes");
       prop('R');
       u4((int)value.size());
       for (auto c : value) {
-        u4(c);
+        u1(c);
       }
       propend();
     }
