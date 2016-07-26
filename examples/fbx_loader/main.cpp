@@ -33,11 +33,28 @@ int main(int argc, char **argv) {
     file.read((char*)text.data(), text.size());
     meshutils::fbx_decoder fbx(text.data(), text.data() + text.size());
 
-    std::cout << fbx;
+    std::ofstream txt1("1.txt", std::ios_base::binary);
+    std::ofstream txt2("2.txt", std::ios_base::binary);
 
     const char *out_filename = "test.fbx";
-    std::ofstream of(out_filename, std::ios_base::binary);
-    meshutils::fbx_encoder encoder(of);
+
+    txt1 << fbx;
+
+    //std::ofstream of(out_filename, std::ios_base::binary);
+    meshutils::fbx_encoder encoder;
+    //of.write((char*)encoder.bytes().data(), encoder.bytes().size());
+
+    const char *beg = (char*)encoder.bytes().data();
+    const char *end = beg + encoder.bytes().size();
+
+    for (size_t i = 27; i != 1000; ++i) {
+      printf("[%02x %02x%s", text[i] & 0xff, beg[i] & 0xff, text[i] != beg[i] ? "]\n" : "]");
+    }
+    printf("\n");
+
+    meshutils::fbx_decoder fbx2(beg, end);
+    txt2 << fbx2;
+    
     return 0;
   } else {
     std::cerr << "uable to open file " << filename << "\n";

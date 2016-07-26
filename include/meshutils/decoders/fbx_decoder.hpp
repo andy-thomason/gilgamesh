@@ -122,7 +122,7 @@ namespace meshutils {
         const char *p = begin_ + offset;
         size_t al;
         static char tmp[65536];
-        char *d = tmp;
+        char *d = tmp, *e = tmp + sizeof(tmp) - 10;
         int fv; std::uint64_t dv;
         switch(*p++) {
             case 'Y': snprintf(tmp, sizeof(tmp), "%d", (short)u2(p)); break;
@@ -131,33 +131,41 @@ namespace meshutils {
             case 'F': fv = u4(p); snprintf(tmp, sizeof(tmp), "%8f", (float&)(fv)); break;
             case 'D': dv = u8(p); snprintf(tmp, sizeof(tmp), "%10f", (double&)(dv)); break;
             case 'L': snprintf(tmp, sizeof(tmp), "%lld", (long long)u8(p)); break;
-            case 'f': return "<array>"; break;
-            case 'd': return "<array>"; break;
-            case 'l': return "<array>"; break;
-            case 'i': return "<array>"; break;
-            case 'b': return "<array>"; break;
+            case 'f': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
+            case 'd': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
+            case 'l': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
+            case 'i': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
+            case 'b': al = u4(p); d += snprintf(d, e-d, "nullptr, %u", (unsigned)al); break;
             case 'S': {
-              bool have_null = false;
-              al = std::min(u4(p), sizeof(tmp)-3); tmp[0] = '"';
-              p += 4;
+              size_t size = al = u4(p);
+              bool has_null = false;
               *d++ = '"';
-              int num_chars = al;
-              while (num_chars-- && d < tmp+sizeof(tmp)-10) {
+              p += 4;
+              while (d < e && al--) {
                 int c = *p++ & 0xff;
-                if (c < ' ' || c >= 0x7f || c == '"' || c == '\\') {
-                  if (c == 0) have_null = true;
-                  d += snprintf(d, tmp+sizeof(tmp)-d-10, "\\x%02x", c);
+                if (c < ' ' || c == '\\' || c == '"' || c >= 0x7f) {
+                  if (c == 0) has_null = true;
+                  d += snprintf(d, e-d, "\\x%02x", c);
                 } else {
                   *d++ = c;
                 }
               }
               *d++ = '"';
-              if (have_null) {
-                d += snprintf(d, tmp+sizeof(tmp)-d-10, ", %d", al);
+              if (has_null) {
+                d += snprintf(d, e-d, ", %d", (int)size);
               }
-              *d++ = 0;
+              *d = 0;
             } break;
-            case 'R': al = u4(p); return "<raw>";
+            case 'R': {
+              size_t size = al = u4(p);
+              p += 4;
+              d += snprintf(d, e-d, "{");
+              while (d < e && al--) {
+                int c = *p++ & 0xff;
+                d += snprintf(d, e-d, "0x%02x,", c);
+              }
+              d += snprintf(d, e-d, "}");
+            } break;
             default: throw std::runtime_error("bad fbx property"); break;
         }
         return tmp;
