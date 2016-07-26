@@ -21,6 +21,10 @@
 #include <future>
 #include <numeric>
 
+#ifdef WIN32
+  #include <filesystem>
+  using namespace std::tr2::sys;
+#endif
 
 #undef min
 
@@ -58,8 +62,45 @@ void par_for(int begin, int end, F fn) {
   printf("\n");
 }
 
-int main() {
-  std::ifstream file(CMAKE_SOURCE "/examples/data/2PTC.pdb", std::ios_base::binary);
+int main(int argc, char **argv) {
+  const char *pdb_filename = nullptr;
+  const char *output_path = "";
+  const char *grid_spacing_text = "0.25";
+  bool error = false;
+
+  for (int i = 1; i != argc; ++i) {
+    const char *arg = argv[i];
+    printf("arg[%d]=[%s]\n", i, arg);
+    if (!strcmp(arg, "--grid-spacing") && i < argc-1) {
+      grid_spacing_text = argv[++i];
+    } else if (!strcmp(arg, "-o") && i < argc-1) {
+      output_path = argv[++i];
+    } else if (!strcmp(arg, "--help")) {
+      error = true;
+    } else if (arg[0] == '-') {
+      printf("invalid argument %s\n", arg);
+      error = true;
+    } else {
+      if (pdb_filename) { printf("only one file will be considered\n"); error = true; }
+      pdb_filename = arg;
+    }
+  }
+
+  float grid_spacing = float(atof(grid_spacing_text));
+
+  if (pdb_filename == nullptr || error) {
+    printf(
+      "usage: molecule <options> <pdb file name>\n"
+      "\noptions:\n"
+      "--grid-size <n>\tgrid size (default 0.25) smaller gives more vertices\n"
+      "--output-path <dir>\tdirectory to output files to\n"
+      "--help <n>\tshow this text\n"
+    ); return 1; }
+
+  const char *filename = "out";
+
+  //std::ifstream file(CMAKE_SOURCE "/examples/data/2PTC.pdb", std::ios_base::binary);
+  std::ifstream file(pdb_filename, std::ios_base::binary);
   std::vector<uint8_t> text;
   if (!file.eof() && !file.fail()) {
     file.seekg(0, std::ios_base::end);
@@ -80,11 +121,11 @@ int main() {
     std::vector<glm::vec4> colors = pdb.colorsByFunction(chainID);
 
     // adjust centre of gravity
-    glm::vec3 sum = std::accumulate(pos.begin(), pos.end(), glm::vec3(0, 0, 0));
+    /*glm::vec3 sum = std::accumulate(pos.begin(), pos.end(), glm::vec3(0, 0, 0));
     glm::vec3 cofg = sum * (1.0f/pos.size());
     for (auto &p : pos) {
       p -= cofg;
-    }
+    }*/
 
     struct colored_atom {
       glm::vec4 color;
@@ -116,7 +157,6 @@ int main() {
     }
 
     float water_radius = 2.0f;
-    float grid_spacing = 0.25f;
     float recip_gs = 1.0f / grid_spacing;
 
     min -= water_radius + max_radius;
@@ -131,6 +171,7 @@ int main() {
       return ((z * (ydim+1)) + y) * (xdim+1) + x;
     };
 
+    printf("building solvent acessible mesh by inflating the atoms\n");
     std::vector<float> accessible((xdim+1)*(ydim+1)*(zdim+1));
     par_for(0, zdim+1, [&](int z) {
       float zpos = z * grid_spacing + min.z;
@@ -173,6 +214,7 @@ int main() {
     auto cmpy = [](const glm::vec3 &a, const glm::vec3 &b) { return a.y < b.y; };
     std::sort(zsorter.begin(), zsorter.end(), cmpz);
 
+    printf("building solvent excluded mesh by deflating the acessible mesh\n");
     std::vector<float> excluded((xdim+1)*(ydim+1)*(zdim+1));
     float outside_value = -(water_radius * water_radius);
     par_for(0, zdim+1, [&](int z) {
@@ -197,6 +239,7 @@ int main() {
         for (int x = 0; x != xdim+1; ++x) {
           glm::vec3 xyz(x * grid_spacing + min.x, ypos, zpos);
           float value = 1e37f;
+          // only if we are inside the acessible mesh...
           if (accessible[idx(x, y, z)] < 0) {
             // find the closest point on the accessible mesh to xyz.
             for (auto &r : ysorter) {
@@ -243,7 +286,12 @@ int main() {
 
     meshutils::color_mesh emesh(xdim, ydim, zdim, efn, egen);
 
-    std::ofstream eof(fmt("excluded_%c.ply", chainID), std::ios::binary);
+    path p(pdb_filename);
+    path stem = p.stem();
+
+    const char *out_filename = fmt("%ls_%c_%s.ply", stem.c_str(), chainID, grid_spacing_text);
+    printf("writing %s\n", out_filename);
+    std::ofstream eof(out_filename, std::ios::binary);
     encoder.encode(emesh, eof, false, "pc");
   }
 }

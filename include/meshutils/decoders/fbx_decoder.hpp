@@ -122,6 +122,7 @@ namespace meshutils {
         const char *p = begin_ + offset;
         size_t al;
         static char tmp[65536];
+        char *d = tmp;
         int fv; std::uint64_t dv;
         switch(*p++) {
             case 'Y': snprintf(tmp, sizeof(tmp), "%d", (short)u2(p)); break;
@@ -135,7 +136,27 @@ namespace meshutils {
             case 'l': return "<array>"; break;
             case 'i': return "<array>"; break;
             case 'b': return "<array>"; break;
-            case 'S': al = u4(p); return std::string(p+4, p + 4 + al);
+            case 'S': {
+              bool have_null = false;
+              al = std::min(u4(p), sizeof(tmp)-3); tmp[0] = '"';
+              p += 4;
+              *d++ = '"';
+              int num_chars = al;
+              while (num_chars-- && d < tmp+sizeof(tmp)-10) {
+                int c = *p++ & 0xff;
+                if (c < ' ' || c >= 0x7f || c == '"' || c == '\\') {
+                  if (c == 0) have_null = true;
+                  d += snprintf(d, tmp+sizeof(tmp)-d-10, "\\x%02x", c);
+                } else {
+                  *d++ = c;
+                }
+              }
+              *d++ = '"';
+              if (have_null) {
+                d += snprintf(d, tmp+sizeof(tmp)-d-10, ", %d", al);
+              }
+              *d++ = 0;
+            } break;
             case 'R': al = u4(p); return "<raw>";
             default: throw std::runtime_error("bad fbx property"); break;
         }
@@ -185,7 +206,7 @@ namespace meshutils {
       const char *begin_;
     };
   public:
-    fbx_decoder(const std::string &filename) {
+    /*fbx_decoder(const std::string &filename) {
       std::ifstream f(filename, std::ios_base::binary);
       if (f.good()) {
         f.seekg(0, std::ios_base::end);
@@ -194,7 +215,7 @@ namespace meshutils {
         f.read((char*)bytes.data(), bytes.size());
         init((char*)bytes.data(), (char*)bytes.data() + f.gcount());
       }
-    }
+    }*/
 
     fbx_decoder(const char *begin, const char *end) { init(begin, end); }
 
@@ -369,23 +390,27 @@ namespace meshutils {
 
     void dump(std::ostream &os, node &n, int depth) const {
       char tmp[256];
-      snprintf(tmp, sizeof(tmp), "%*s%08zx..%08zx %s\n", depth*2, "", n.offset(), n.end_offset(), n.name().c_str());
+      //snprintf(tmp, sizeof(tmp), "%*s%08zx..%08zx %s\n", depth*2, "", n.offset(), n.end_offset(), n.name().c_str());
+      snprintf(tmp, sizeof(tmp), "%*sbegin(\"%s\");\n", depth*2, "", n.name().c_str());
       os << tmp;
       for (auto p : n.get_props()) {
-          snprintf(tmp, sizeof(tmp), "%*s   %c %s\n", depth*2, "", p.kind(), ((std::string)p).c_str());
-          os << tmp;
+        snprintf(tmp, sizeof(tmp), "%*s  %c(%s);\n", depth*2, "", p.kind(), ((std::string)p).c_str());
+        os << tmp;
       }
       for (auto child : n) {
-          dump(os, child, depth+1);
+        dump(os, child, depth+1);
       }
+      snprintf(tmp, sizeof(tmp), "%*send(\"%s\");\n", depth*2, "", n.name().c_str());
+      os << tmp;
     }
 
     friend std::ostream &operator<<(std::ostream &os, const fbx_decoder &fbx);
 
     void bad_fbx() { throw std::runtime_error("bad fbx"); }
 
-    std::vector<std::uint8_t> bytes;
+    //std::vector<std::uint8_t> bytes;
     //scene the_scene;
+
     size_t end_offset;
     const char *begin_;
     const char *end_;
