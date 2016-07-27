@@ -21,10 +21,6 @@
 #include <future>
 #include <numeric>
 
-#ifdef WIN32
-  #include <filesystem>
-  using namespace std::tr2::sys;
-#endif
 
 #undef min
 
@@ -92,7 +88,7 @@ int main(int argc, char **argv) {
     printf(
       "usage: molecule <options> <pdb file name>\n"
       "\noptions:\n"
-      "--grid-size <n>\tgrid size (default 0.25) smaller gives more vertices\n"
+      "--grid-spacing <n>\tgrid spacing (default 0.25) smaller gives more vertices\n"
       "--output-path <dir>\tdirectory to output files to\n"
       "--help <n>\tshow this text\n"
     ); return 1; }
@@ -141,7 +137,7 @@ int main(int argc, char **argv) {
         colored_atoms.push_back(a);
       }
     }
-    printf("chain %c, %d colored atoms\n", chainID, colored_atoms.size());
+    printf("chain %c, %d colored atoms\n", chainID, (int)colored_atoms.size());
 
     glm::vec3 min = pos[0];
     glm::vec3 max = pos[0];
@@ -286,10 +282,19 @@ int main(int argc, char **argv) {
 
     meshutils::color_mesh emesh(xdim, ydim, zdim, efn, egen);
 
-    path p(pdb_filename);
-    path stem = p.stem();
+    const char *last_slash = pdb_filename;
+    const char *last_dot = pdb_filename + strlen(pdb_filename);
+    for (const char *p = pdb_filename; *p; ++p) {
+      if (*p == '/' || *p == '\\') last_slash = p + 1;
+    }
+    for (const char *p = last_slash; *p; ++p) {
+      if (*p == '.') last_dot = p;
+    }
 
-    const char *out_filename = fmt("%ls_%c_%s.ply", stem.c_str(), chainID, grid_spacing_text);
+    std::string stem;
+    stem.assign(last_slash, last_dot);
+
+    const char *out_filename = fmt("%s_%c_%s.ply", stem.c_str(), chainID, grid_spacing_text);
     printf("writing %s\n", out_filename);
     std::ofstream eof(out_filename, std::ios::binary);
     encoder.encode(emesh, eof, false, "pc");

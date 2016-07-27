@@ -12,6 +12,7 @@
 #include <vector>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <ostream>
 #include <algorithm>
 #include <stdio.h>

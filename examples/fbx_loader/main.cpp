@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
 
     int err = 0;
     for (size_t i = 3500; i != end-beg && err != 100; ++i) {
-      printf("[%d %02x %02x %c %s", i, text[i] & 0xff, beg[i] & 0xff, text[i] < ' ' || text[i] >= 0x7f ? '.' : text[i], text[i] != beg[i] ? "]\n" : "]");
+      printf("[%d %02x %02x %c %s", (int)i, text[i] & 0xff, beg[i] & 0xff, text[i] < ' ' || text[i] >= 0x7f ? '.' : text[i], text[i] != beg[i] ? "]\n" : "]");
       err += text[i] != beg[i];
     }
     printf("\n");
