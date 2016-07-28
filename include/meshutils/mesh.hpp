@@ -14,13 +14,31 @@
 #include <cstdio>
 #include <ostream>
 #include <algorithm>
+#include <memory>
 #include <stdio.h>
 
 namespace meshutils {
 
-// A wrapper for meshes.
+// base class for all meshes.
+class mesh {
+public:
+  mesh() {
+  }
+
+  virtual ~mesh() {
+  }
+
+  virtual std::vector<glm::vec3> pos() const  = 0;
+  virtual std::vector<glm::vec3> normal() const = 0;
+  virtual std::vector<glm::vec2> uv(int index) const = 0;
+  virtual std::vector<glm::vec4> color() const = 0;
+  virtual std::vector<uint32_t> indices32() const = 0;
+};
+
+// Specialised mesh based on a template vertex type
+// The vertices are represented in Array of Structures form.
 template <class MeshTraits>
-class basic_mesh {
+class basic_mesh : public mesh {
 public:
   typedef MeshTraits traits_t;
   typedef typename MeshTraits::vertex_t vertex_t;
@@ -28,6 +46,49 @@ public:
 
   // empty basic_mesh
   basic_mesh() {
+  }
+
+  // mesh virtual methods
+  std::vector<glm::vec3> pos() const override {
+    std::vector<glm::vec3> result;
+    for (auto &v : vertices_) {
+      result.push_back(v.pos());
+    }
+    return std::move(result);
+  }
+
+  std::vector<glm::vec3> normal() const override {
+    std::vector<glm::vec3> result;
+    for (auto &v : vertices_) {
+      result.push_back(v.normal());
+    }
+    return std::move(result);
+  }
+
+  std::vector<glm::vec4> color() const override {
+    std::vector<glm::vec4> result;
+    for (auto &v : vertices_) {
+      result.push_back(v.color());
+    }
+    return std::move(result);
+  }
+
+  std::vector<glm::vec2> uv(int index) const override {
+    std::vector<glm::vec2> result;
+    if (index == 0) {
+      for (auto &v : vertices_) {
+        result.push_back(v.uv());
+      }
+    }
+    return std::move(result);
+  }
+
+  std::vector<uint32_t> indices32() const override {
+    std::vector<glm::uint32_t> result;
+    for (auto i : indices_) {
+      result.push_back((uint32_t)i);
+    }
+    return std::move(result);
   }
 
   const std::vector<vertex_t> &vertices() const { return vertices_; }
@@ -166,6 +227,18 @@ public:
       }
     }
     compact(expanded);
+  }
+
+  basic_mesh(std::vector<glm::vec3> &pos, std::vector<glm::vec3> &normal, std::vector<glm::vec2> &uv, std::vector<glm::vec4> &color, std::vector<uint32_t> &indices) {
+    for (size_t i = 0; i != pos.size(); ++i) {
+      glm::vec3 vnormal = normal.empty() ? glm::vec3(1, 0, 0) : normal[i];
+      glm::vec2 vuv = uv.empty() ? glm::vec2(0, 0) : uv[i];
+      glm::vec4 vcolor = color.empty() ? glm::vec4(1, 1, 1, 1) : color[i];
+      vertices_.emplace_back(pos[i], vnormal, vuv, vcolor);
+    }
+    for (auto i : indices) {
+      indices_.push_back((index_t)i);
+    }
   }
 
   // Generate an implicit basic_mesh from a function (ie. marching cubes).

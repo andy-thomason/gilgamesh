@@ -14,6 +14,7 @@
 //#include <filesystem>
 #include <vector>
 
+#include <meshutils/scene.hpp>
 #include <minizip/deflate_decoder.hpp>
 #include <glm/glm.hpp>
 
@@ -23,7 +24,7 @@
 namespace meshutils {
 
   class fbx_decoder {
-    enum { debug = 0 };
+    enum { debug = 1 };
 
     static inline std::uint8_t u1(const char *p) {
       const unsigned char *q = (const unsigned char *)p;
@@ -204,7 +205,7 @@ namespace meshutils {
               return decoder.decode(dest, dest_max, src+2, src_max);
             }
           } else {
-            memcpy(dest, p, al*8);
+            memcpy(dest, p, al*sizeof(Type));
             return true;
           }
         }
@@ -374,6 +375,127 @@ namespace meshutils {
       return false;
     }
 
+    template<class MeshType>
+    bool loadScene(meshutils::scene &scene) {
+      minizip::deflate_decoder decoder;
+
+      std::vector<double> fbxVertices;
+      std::vector<double> fbxNormals;
+      std::vector<double> fbxUVs;
+      std::vector<int32_t> fbxUVIndices;
+      std::vector<int32_t> fbxNormalIndices;
+      std::vector<int32_t> fbxIndices;
+      std::string fbxNormalMapping;
+      std::string fbxUVMapping;
+      std::string fbxNormalRef;
+      std::string fbxUVRef;
+
+      for (auto section : *this) {
+        if (section.name() == "Objects") {
+          for (auto obj : section) {
+            if (obj.name() == "Geometry") {
+              for (auto comp : obj) {
+                auto vp = comp.get_props().begin();
+                if (debug) printf("%s %c\n", comp.name().c_str(), vp.kind());
+                if (comp.name() == "Vertices") {
+                  vp.getArray<double, 'd'>(fbxVertices, decoder);
+                } else if (comp.name() == "LayerElementNormal") {
+                  for (auto sub : comp) {
+                    auto vp = sub.get_props().begin();
+                    if (debug) printf("  %s %c\n", sub.name().c_str(), vp.kind());
+                    if (sub.name() == "MappingInformationType") {
+                      vp.getString(fbxNormalMapping);
+                    } else if (sub.name() == "ReferenceInformationType") {
+                      vp.getString(fbxNormalRef);
+                    } else if (sub.name() == "NormalIndex") {
+                      vp.getArray<int32_t, 'i'>(fbxNormalIndices, decoder);
+                    } else if (sub.name() == "Normals") {
+                      vp.getArray<double, 'd'>(fbxNormals, decoder);
+                    }
+                  }
+                } else if (comp.name() == "LayerElementUV") {
+                  for (auto sub : comp) {
+                    auto vp = sub.get_props().begin();
+                    if (debug) printf("  %s %c\n", sub.name().c_str(), vp.kind());
+                    if (sub.name() == "MappingInformationType") {
+                      vp.getString(fbxUVMapping);
+                    } else if (sub.name() == "ReferenceInformationType") {
+                      vp.getString(fbxUVRef);
+                    } else if (sub.name() == "UVIndex") {
+                      vp.getArray<int32_t, 'i'>(fbxUVIndices, decoder);
+                    } else if (sub.name() == "UV") {
+                      vp.getArray<double, 'd'>(fbxUVs, decoder);
+                    }
+                  }
+                } else if (comp.name() == "PolygonVertexIndex") {
+                  vp.getArray<int32_t, 'i'>(fbxIndices, decoder);
+                }
+              }
+
+              auto normalMapping = fbx_decoder::decodeMapping(fbxNormalMapping);
+              auto uvMapping = fbx_decoder::decodeMapping(fbxUVMapping);
+              auto normalRef = fbx_decoder::decodeRef(fbxNormalRef);
+              auto uvRef = fbx_decoder::decodeRef(fbxUVRef);
+
+              if (debug) printf("%s %s\n", fbxNormalMapping.c_str(), fbxUVMapping.c_str());
+              if (debug) printf("%s %s\n", fbxNormalRef.c_str(), fbxUVRef.c_str());
+              if (debug) printf("%d vertices %d indices %d normals %d uvs %d uvindices\n", (int)fbxVertices.size(), (int)fbxIndices.size(), (int)fbxNormals.size(), (int)fbxUVs.size(), (int)fbxUVIndices.size());
+
+              std::vector<glm::vec3> pos;
+              std::vector<glm::vec3> normal;
+              std::vector<glm::vec2> uv;
+              std::vector<glm::vec4> color;
+
+              // map the fbx data to real vertices
+              for (size_t i = 0; i != fbxIndices.size(); ++i) {
+                size_t ni = normalRef == fbx_decoder::Ref::IndexToDirect ? fbxNormalIndices[i] : i;
+                size_t uvi = uvRef == fbx_decoder::Ref::IndexToDirect ? fbxUVIndices[i] : i;
+                int32_t vi = fbxIndices[i];
+                if (vi < 0) vi = -1 - vi;
+
+                glm::vec3 vpos(fbxVertices[vi*3+0], fbxVertices[vi*3+1], fbxVertices[vi*3+2]);
+                glm::vec3 vnormal(1, 0, 0);
+                glm::vec2 vuv(0, 0);
+                glm::vec4 vcolor(1, 1, 1, 1);
+
+                if (normalMapping == fbx_decoder::Mapping::ByPolygonVertex) {
+                  vnormal = glm::vec3(fbxNormals[ni*3+0], fbxNormals[ni*3+1], fbxNormals[ni*3+2]);
+                }
+
+                if (uvMapping == fbx_decoder::Mapping::ByPolygonVertex) {
+                  vuv = glm::vec2(fbxUVs[uvi*2+0], fbxUVs[uvi*2+1]);
+                }
+
+                pos.push_back(vpos);
+                normal.push_back(vnormal);
+                uv.push_back(vuv);
+                color.push_back(vcolor);
+              }
+
+
+              // map the fbx data to real indices
+              // todo: add a function to re-index
+              std::vector<uint32_t> indices;
+              for (size_t i = 0, j = 0; i != fbxIndices.size(); ++i) {
+                if (fbxIndices[i] < 0) {
+                  for (size_t k = j+2; k <= i; ++k) {
+                    indices.push_back((uint32_t)j);
+                    indices.push_back((uint32_t)k-1);
+                    indices.push_back((uint32_t)k);
+                  }
+                  j = i + 1;
+                }
+              }
+
+              //MeshType *mesh = new MeshType(pos, normal, uv, color, indices);
+              //scene.addMesh(mesh);
+            } // if (obj.name() == "Geometry")
+          }
+        } // if (section.name() == "Objects")
+      }
+      return true;
+    }
+
   private:
 
     void init(const char *begin, const char *end) {
@@ -392,6 +514,7 @@ namespace meshutils {
       p += 4;
 
       while (u4(p)) {
+        printf("init: %x\n", p - begin);
         p = begin + u4(p);
       }
       end_offset = p - begin;
@@ -402,6 +525,8 @@ namespace meshutils {
       //snprintf(tmp, sizeof(tmp), "%*s%08zx..%08zx %s\n", depth*2, "", n.offset(), n.end_offset(), n.name().c_str());
       snprintf(tmp, sizeof(tmp), "%*sbegin(\"%s\");\n", depth*2, "", n.name().c_str());
       os << tmp;
+      std::vector<uint64_t> ldata;
+      std::vector<uint32_t> idata;
       for (auto p : n.get_props()) {
         snprintf(tmp, sizeof(tmp), "%*s  %c(%s);\n", depth*2, "", p.kind(), ((std::string)p).c_str());
         os << tmp;

@@ -5,6 +5,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <meshutils/mesh.hpp>
+#include <meshutils/scene.hpp>
 #include <meshutils/decoders/fbx_decoder.hpp>
 #include <meshutils/encoders/fbx_encoder.hpp>
 
@@ -40,22 +41,33 @@ int main(int argc, char **argv) {
 
     txt1 << fbx;
 
+    meshutils::scene scene;
+    fbx.loadScene<meshutils::color_mesh>(scene);
+
     //std::ofstream of(out_filename, std::ios_base::binary);
+    meshutils::color_mesh mesh;
+    std::vector<const meshutils::mesh*> meshes = { &mesh };
+    std::vector<glm::mat4> transforms = { glm::mat4() };
+    std::vector<int> parent_transforms = { -1 };
+    std::vector<int> mesh_indices = { 0 };
+
     meshutils::fbx_encoder encoder;
+
+    encoder.encode(meshes, transforms, parent_transforms, mesh_indices);
     //of.write((char*)encoder.bytes().data(), encoder.bytes().size());
 
     const char *beg = (char*)encoder.bytes().data();
     const char *end = beg + encoder.bytes().size();
 
-    int err = 0;
+    /*int err = 0;
     for (size_t i = 3500; i != end-beg && err != 100; ++i) {
       printf("[%d %02x %02x %c %s", i, text[i] & 0xff, beg[i] & 0xff, text[i] < ' ' || text[i] >= 0x7f ? '.' : text[i], text[i] != beg[i] ? "]\n" : "]");
       err += text[i] != beg[i];
     }
-    printf("\n");
+    printf("\n");*/
 
-    //meshutils::fbx_decoder fbx2(beg, end);
-    //txt2 << fbx2;
+    meshutils::fbx_decoder fbx2(beg, end);
+    txt2 << fbx2;
     
     return 0;
   } else {
