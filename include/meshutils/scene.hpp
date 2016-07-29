@@ -26,15 +26,15 @@ namespace meshutils {
 
     int addMesh(mesh *mesh) {
       size_t result = meshes_.size();
-      //meshes_.emplace_back(mesh);
+      meshes_.emplace_back(mesh);
       return (int)result;
     }
 
     int addNode(const glm::mat4 &mat, int parent, int mesh) {
       size_t result = transforms_.size();
-      //transforms_.emplace_back(mat);
-      //parent_transforms_.emplace_back(parent);
-      //mesh_indices_.emplace_back(mesh);
+      transforms_.emplace_back(mat);
+      parent_transforms_.emplace_back(parent);
+      mesh_indices_.emplace_back(mesh);
       return (int)result;
     }
 

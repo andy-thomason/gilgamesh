@@ -43,21 +43,14 @@ int main(int argc, char **argv) {
 
     meshutils::scene scene;
     fbx.loadScene<meshutils::color_mesh>(scene);
-
-    //std::ofstream of(out_filename, std::ios_base::binary);
-    meshutils::color_mesh mesh;
-    std::vector<const meshutils::mesh*> meshes = { &mesh };
-    std::vector<glm::mat4> transforms = { glm::mat4() };
-    std::vector<int> parent_transforms = { -1 };
-    std::vector<int> mesh_indices = { 0 };
+    std::cout << scene.meshes().size() << "\n";
 
     meshutils::fbx_encoder encoder;
 
-    encoder.encode(meshes, transforms, parent_transforms, mesh_indices);
-    //of.write((char*)encoder.bytes().data(), encoder.bytes().size());
+    std::vector<uint8_t> bytes = encoder.saveScene(scene);
 
-    const char *beg = (char*)encoder.bytes().data();
-    const char *end = beg + encoder.bytes().size();
+    const char *beg = (char*)bytes.data();
+    const char *end = beg + bytes.size();
 
     /*int err = 0;
     for (size_t i = 3500; i != end-beg && err != 100; ++i) {

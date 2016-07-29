@@ -27,9 +27,8 @@ namespace meshutils {
     fbx_encoder() {
     }
 
-    const std::vector<uint8_t> &bytes() { return bytes_; }
-
-    void encode(const std::vector<const mesh*> &meshes, const std::vector<glm::mat4> &transforms, const std::vector<int> &parent_transforms, const std::vector<int> &mesh_indices) {
+    std::vector<uint8_t> saveScene(const meshutils::scene &scene) {
+      //const std::vector<const mesh*> &meshes, const std::vector<glm::mat4> &transforms, const std::vector<int> &parent_transforms, const std::vector<int> &mesh_indices) {
       bytes_.resize(0);
 
       static const uint8_t fbx_header[] = {
@@ -63,6 +62,8 @@ namespace meshutils {
       writeDefinitions();
 
       begin("Objects");
+        auto &meshes = scene.meshes();
+        auto &transforms = scene.transforms();
         for (size_t i = 0; i != meshes.size(); ++i) {
           writeGeometry(*meshes[i], i);
         }
@@ -103,6 +104,7 @@ namespace meshutils {
         end("Current");
       end("Takes");
       nullnode();
+      return std::move(bytes_);
     }
   public:
 
@@ -1258,10 +1260,19 @@ namespace meshutils {
         begin("Vertices");
           std::vector<glm::vec3> pos = mesh.pos();
           std::vector<double> dpos;
+          for (auto &p : mesh.pos()) {
+            dpos.push_back((double)p.x);
+            dpos.push_back((double)p.y);
+            dpos.push_back((double)p.z);
+          }
           d(dpos.data(), dpos.size());
         end("Vertices");
         begin("PolygonVertexIndex");
-          i(nullptr, 0);
+          std::vector<uint32_t> indices = mesh.indices32();
+          for (size_t i = 2; i < indices.size(); i += 3) {
+            indices[i] = ~indices[i];
+          }
+          i(indices.data(), indices.size());
         end("PolygonVertexIndex");
         begin("Edges");
           i(nullptr, 0);
@@ -1299,7 +1310,8 @@ namespace meshutils {
             S("IndexToDirect");
           end("ReferenceInformationType");
           begin("Materials");
-            i(nullptr, 0);
+            uint32_t mat[] = { 0 };
+            i(mat, 1);
           end("Materials");
         end("LayerElementMaterial");
         begin("Layer");
