@@ -363,8 +363,6 @@ namespace meshutils {
 
                 size_t nj = map(normalMapping, pi, ni, vi);
                 size_t uvj = map(uvMapping, pi, uvi, vi);
-                printf("nj=%d/%d\n", nj, fbxNormals.size()/3);
-                printf("uvj=%d/%d\n", nj, fbxUVs.size()/3);
 
                 vnormal = glm::vec3(fbxNormals[nj*3+0], fbxNormals[nj*3+1], fbxNormals[nj*3+2]);
                 vuv = glm::vec2(fbxUVs[uvj*2+0], fbxUVs[uvj*2+1]);

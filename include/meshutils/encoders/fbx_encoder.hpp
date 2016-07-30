@@ -1292,7 +1292,14 @@ namespace meshutils {
             S("Direct");
           end("ReferenceInformationType");
           begin("Normals");
-            d(nullptr, 0);
+            std::vector<glm::vec3> normal = mesh.normal();
+            std::vector<double> dnormal;
+            for (auto &p : mesh.normal()) {
+              dnormal.push_back((double)p.x);
+              dnormal.push_back((double)p.y);
+              dnormal.push_back((double)p.z);
+            }
+            d(dnormal.data(), dnormal.size());
           end("Normals");
         end("LayerElementNormal");
         begin("LayerElementMaterial");
