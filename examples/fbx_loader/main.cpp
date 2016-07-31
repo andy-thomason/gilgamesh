@@ -61,6 +61,9 @@ int main(int argc, char **argv) {
 
     meshutils::fbx_decoder fbx2(beg, end);
     txt2 << fbx2;
+
+    std::ofstream outfile("out.fbx", std::ios_base::binary);
+    outfile.write(beg, end-beg);
     
     return 0;
   } else {

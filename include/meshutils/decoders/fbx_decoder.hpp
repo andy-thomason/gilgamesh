@@ -73,6 +73,7 @@ namespace meshutils {
       bool operator !=(node &rhs) { return offset_ != rhs.offset_; }
       node &operator++() { offset_ = end_offset(); return *this; }
       std::string name() const { return std::string(begin_ + offset_ + 13, begin_ + offset_ + 13 + len()); }
+      bool name_is(const char *name) const { size_t namelen = strlen(name); return len() == namelen && !memcmp(begin_ + offset_ + 13, name, namelen); }
       node begin() const { size_t new_offset = offset_ + 13 + property_list_len() + len(), end = end_offset(); return node(begin_, new_offset == end ? end-13 : new_offset); }
       node end() const { return node(begin_, end_offset() - 13); }
       node &operator*() { return *this; }
@@ -184,6 +185,22 @@ namespace meshutils {
         return false;
       }
 
+      double getDouble() {
+        if (kind() == 'D') {
+          union { uint64_t u; double d; } u;
+          u.u = u8(begin_ + offset + 1);
+          return u.d;
+        }
+        return 0;
+      }
+
+      uint64_t getLong() {
+        if (kind() == 'L') {
+          return u8(begin_ + offset + 1);
+        }
+        return 0;
+      }
+
       template <class Type, char Kind>
       bool getArray(std::vector<Type> &result, const minizip::deflate_decoder &decoder) const {
         Type *begin = nullptr;
@@ -283,44 +300,52 @@ namespace meshutils {
       std::string fbxNormalRef;
       std::string fbxUVRef;
 
+      std::vector<uint64_t> geometryIds;
+      std::vector<uint64_t> modelIds;
+      std::vector<glm::mat4> transforms;
+      std::vector<int> parents;
+      std::vector<int> meshIdxs;
+
       for (auto section : *this) {
-        if (section.name() == "Objects") {
+        if (section.name_is("Objects")) {
           for (auto obj : section) {
-            if (obj.name() == "Geometry") {
+            if (obj.name_is("Geometry")) {
+              auto ovp = obj.get_props().begin();
+              geometryIds.push_back(ovp.getLong());
               for (auto comp : obj) {
                 auto vp = comp.get_props().begin();
                 if (debug) printf("%s %c\n", comp.name().c_str(), vp.kind());
-                if (comp.name() == "Vertices") {
+                if (comp.name_is("Vertices")) {
                   vp.getArray<double, 'd'>(fbxVertices, decoder);
-                } else if (comp.name() == "LayerElementNormal") {
+                } else if (comp.name_is("LayerElementNormal")) {
                   for (auto sub : comp) {
                     auto vp = sub.get_props().begin();
                     if (debug) printf("  %s %c\n", sub.name().c_str(), vp.kind());
-                    if (sub.name() == "MappingInformationType") {
+                    if (sub.name_is("MappingInformationType")) {
                       vp.getString(fbxNormalMapping);
-                    } else if (sub.name() == "ReferenceInformationType") {
+                    } else if (sub.name_is("ReferenceInformationType")) {
                       vp.getString(fbxNormalRef);
-                    } else if (sub.name() == "NormalIndex") {
+                    } else if (sub.name_is("NormalIndex")) {
                       vp.getArray<int32_t, 'i'>(fbxNormalIndices, decoder);
-                    } else if (sub.name() == "Normals") {
+                    } else if (sub.name_is("Normals")) {
                       vp.getArray<double, 'd'>(fbxNormals, decoder);
                     }
                   }
-                } else if (comp.name() == "LayerElementUV") {
+                } else if (comp.name_is("LayerElementUV")) {
                   for (auto sub : comp) {
                     auto vp = sub.get_props().begin();
                     if (debug) printf("  %s %c\n", sub.name().c_str(), vp.kind());
-                    if (sub.name() == "MappingInformationType") {
+                    if (sub.name_is("MappingInformationType")) {
                       vp.getString(fbxUVMapping);
-                    } else if (sub.name() == "ReferenceInformationType") {
+                    } else if (sub.name_is("ReferenceInformationType")) {
                       vp.getString(fbxUVRef);
-                    } else if (sub.name() == "UVIndex") {
+                    } else if (sub.name_is("UVIndex")) {
                       vp.getArray<int32_t, 'i'>(fbxUVIndices, decoder);
-                    } else if (sub.name() == "UV") {
+                    } else if (sub.name_is("UV")) {
                       vp.getArray<double, 'd'>(fbxUVs, decoder);
                     }
                   }
-                } else if (comp.name() == "PolygonVertexIndex") {
+                } else if (comp.name_is("PolygonVertexIndex")) {
                   vp.getArray<int32_t, 'i'>(fbxIndices, decoder);
                 }
               }
@@ -392,10 +417,67 @@ namespace meshutils {
 
               MeshType *mesh = new MeshType(pos, normal, uv, color, indices);
               scene.addMesh(mesh);
-            } // if (obj.name() == "Geometry")
+            } else if (obj.name_is("Model")) {
+              auto ovp = obj.get_props().begin();
+              modelIds.push_back(ovp.getLong());
+              std::string str1;
+              std::string str2;
+              double rx = 0, ry = 0, rz = 0;
+              double sx = 0, sy = 0, sz = 0;
+              for (auto comp : obj) {
+                if (comp.name_is("Properties70")) {
+                  for (auto prop : comp) {
+                    if (prop.name_is("P")) {
+                      auto props = prop.get_props();
+                      auto prop = props.begin();
+                      prop.getString(str1);
+                      ++prop;
+                      prop.getString(str2);
+                      ++prop;
+                      ++prop;
+                      ++prop;
+                      if (str1 == "Lcl Rotation") {
+                        rx = prop.getDouble(); ++prop;
+                        ry = prop.getDouble(); ++prop;
+                        rz = prop.getDouble();
+                      } else if (str1 == "Lcl Scaling") {
+                        sx = prop.getDouble(); ++prop;
+                        sy = prop.getDouble(); ++prop;
+                        sz = prop.getDouble();
+                      }
+                    }
+                  }
+                }
+              }
+              // see blen_read_object_transform_do
+              // in /usr/share/blender/2.77/scripts/addons/io_scene_fbx/import_fbx.py
+              // todo: support pivots and other 
+              glm::mat4 mat;
+              transforms.push_back(mat);
+              parents.push_back(0);
+              meshIdxs.push_back(0);
+            }
           }
-        } // if (section.name() == "Objects")
+        } else if (section.name_is("Connections")) {
+          std::string kind;
+          for (auto connection : section) {
+            if (connection.name_is("C")) {
+              auto cvp = connection.get_props().begin();
+              cvp.getString(kind); ++cvp;
+              if (kind == "OO") {
+                uint64_t from = cvp.getLong();
+                uint64_t to = cvp.getLong();
+                // todo: connect heirachy
+              }
+            }
+          }
+          for (size_t i = 0; i != transforms.size(); ++i) {
+            scene.addNode(transforms[i], parents[i], meshIdxs[i]);
+          }
+        }
       }
+
+
       return true;
     }
 

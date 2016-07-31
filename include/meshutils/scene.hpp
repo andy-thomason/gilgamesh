@@ -12,6 +12,7 @@
 #include <vector>
 #include <memory>
 
+// Scene class. Note that the scene does not own its components.
 namespace meshutils {
   class scene {
   public:

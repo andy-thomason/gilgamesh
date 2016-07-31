@@ -1248,6 +1248,8 @@ namespace meshutils {
     }
 
     void writeGeometry(const mesh &mesh, size_t index) {
+      std::vector<uint32_t> indices = mesh.indices32();
+      std::vector<glm::vec3> pos = mesh.pos();
       begin("Geometry");
         L(index + 0x10000000);
         S("Cube\x00\x01Geometry", 14);
@@ -1258,7 +1260,6 @@ namespace meshutils {
           I(124);
         end("GeometryVersion");
         begin("Vertices");
-          std::vector<glm::vec3> pos = mesh.pos();
           std::vector<double> dpos;
           for (auto &p : mesh.pos()) {
             dpos.push_back((double)p.x);
@@ -1268,14 +1269,20 @@ namespace meshutils {
           d(dpos.data(), dpos.size());
         end("Vertices");
         begin("PolygonVertexIndex");
-          std::vector<uint32_t> indices = mesh.indices32();
-          for (size_t i = 2; i < indices.size(); i += 3) {
-            indices[i] = ~indices[i];
+          std::vector<uint32_t> pvi;
+          for (size_t i = 0; i < indices.size(); i += 3) {
+            pvi.push_back(indices[i+0]);
+            pvi.push_back(indices[i+1]);
+            pvi.push_back(~indices[i+2]);
           }
-          i(indices.data(), indices.size());
+          i(pvi.data(), pvi.size());
         end("PolygonVertexIndex");
         begin("Edges");
-          i(nullptr, 0);
+          std::vector<uint32_t> edges;
+          for (size_t i = 0; i < indices.size(); ++i) {
+            edges.push_back(i);
+          }
+          i(edges.data(), edges.size());
         end("Edges");
         begin("LayerElementNormal");
           I(0);
