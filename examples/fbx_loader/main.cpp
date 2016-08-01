@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   }
 
   if (filename == nullptr) {
-    filename = CMAKE_SOURCE "/examples/data/cube.fbx";
+    filename = CMAKE_SOURCE "/examples/data/plane.fbx";
   }
 
   std::ifstream file(filename, std::ios_base::binary);
@@ -70,6 +70,5 @@ int main(int argc, char **argv) {
     std::cerr << "uable to open file " << filename << "\n";
     return 1;
   }
-  
 }
 

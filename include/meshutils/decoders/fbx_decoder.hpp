@@ -287,8 +287,6 @@ namespace meshutils {
 
     template<class MeshType>
     bool loadScene(meshutils::scene &scene) {
-      minizip::deflate_decoder decoder;
-
       std::vector<double> fbxVertices;
       std::vector<double> fbxNormals;
       std::vector<double> fbxUVs;
@@ -316,7 +314,7 @@ namespace meshutils {
                 auto vp = comp.get_props().begin();
                 if (debug) printf("%s %c\n", comp.name().c_str(), vp.kind());
                 if (comp.name_is("Vertices")) {
-                  vp.getArray<double, 'd'>(fbxVertices, decoder);
+                  vp.getArray<double, 'd'>(fbxVertices, decoder_);
                 } else if (comp.name_is("LayerElementNormal")) {
                   for (auto sub : comp) {
                     auto vp = sub.get_props().begin();
@@ -326,9 +324,9 @@ namespace meshutils {
                     } else if (sub.name_is("ReferenceInformationType")) {
                       vp.getString(fbxNormalRef);
                     } else if (sub.name_is("NormalIndex")) {
-                      vp.getArray<int32_t, 'i'>(fbxNormalIndices, decoder);
+                      vp.getArray<int32_t, 'i'>(fbxNormalIndices, decoder_);
                     } else if (sub.name_is("Normals")) {
-                      vp.getArray<double, 'd'>(fbxNormals, decoder);
+                      vp.getArray<double, 'd'>(fbxNormals, decoder_);
                     }
                   }
                 } else if (comp.name_is("LayerElementUV")) {
@@ -340,13 +338,13 @@ namespace meshutils {
                     } else if (sub.name_is("ReferenceInformationType")) {
                       vp.getString(fbxUVRef);
                     } else if (sub.name_is("UVIndex")) {
-                      vp.getArray<int32_t, 'i'>(fbxUVIndices, decoder);
+                      vp.getArray<int32_t, 'i'>(fbxUVIndices, decoder_);
                     } else if (sub.name_is("UV")) {
-                      vp.getArray<double, 'd'>(fbxUVs, decoder);
+                      vp.getArray<double, 'd'>(fbxUVs, decoder_);
                     }
                   }
                 } else if (comp.name_is("PolygonVertexIndex")) {
-                  vp.getArray<int32_t, 'i'>(fbxIndices, decoder);
+                  vp.getArray<int32_t, 'i'>(fbxIndices, decoder_);
                 }
               }
 
@@ -521,8 +519,32 @@ namespace meshutils {
       std::vector<uint64_t> ldata;
       std::vector<uint32_t> idata;
       for (auto p : n.get_props()) {
-        snprintf(tmp, tmp_size, "%*s  %c(%s);\n", depth*2, "", p.kind(), ((std::string)p).c_str());
-        os << tmp;
+        switch (p.kind()) {
+          case 'd': {
+            std::vector<double> data;
+            p.getArray<double, 'd'>(data, decoder_);
+            snprintf(tmp, tmp_size, "%*s  d(", depth*2, "");
+            os << tmp;
+            for (auto v : data) {
+              os << v << ",";
+            }
+            os << ");\n";
+          } break;
+          case 'i': {
+            std::vector<int> data;
+            p.getArray<int, 'i'>(data, decoder_);
+            snprintf(tmp, tmp_size, "%*s  i(", depth*2, "");
+            os << tmp;
+            for (auto v : data) {
+              os << v << ",";
+            }
+            os << ");\n";
+          } break;
+          default: {
+            snprintf(tmp, tmp_size, "%*s  %c(%s);\n", depth*2, "", p.kind(), ((std::string)p).c_str());
+            os << tmp;
+          } break;
+        }
       }
       for (auto child : n) {
         dump(os, child, depth+1, tmp, tmp_size);
@@ -537,6 +559,8 @@ namespace meshutils {
 
     //std::vector<std::uint8_t> bytes;
     //scene the_scene;
+
+    minizip::deflate_decoder decoder_;
 
     size_t end_offset;
     const char *begin_;

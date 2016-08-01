@@ -31,13 +31,16 @@ namespace meshutils {
       //const std::vector<const mesh*> &meshes, const std::vector<glm::mat4> &transforms, const std::vector<int> &parent_transforms, const std::vector<int> &mesh_indices) {
       bytes_.resize(0);
 
+      int version = 0x1ce8;
+
       static const uint8_t fbx_header[] = {
         0x4b, 0x61, 0x79, 0x64, 0x61, 0x72, 0x61, 0x20, 0x46, 0x42, 0x58, 0x20,
-        0x42, 0x69, 0x6e, 0x61, 0x72, 0x79, 0x20, 0x20, 0x00, 0x1a, 0x00, 0xe8,
-        0x1c, 0x00, 0x00
+        0x42, 0x69, 0x6e, 0x61, 0x72, 0x79, 0x20, 0x20, 0x00, 0x1a, 0x00, 
       };
       bytes_.reserve(0x10000);
+
       bytes_.assign(fbx_header, fbx_header + sizeof(fbx_header));
+      u4(version);
 
       writeFBXHeaderExtension();
 
@@ -72,7 +75,7 @@ namespace meshutils {
           writeModel(transforms[i], i);
         }
 
-        writeMaterial(0);
+        //writeMaterial(0);
       end("Objects");
 
       size_t model_index = 0;
@@ -92,11 +95,11 @@ namespace meshutils {
           L(0x20000000 + model_index);
         end("C");
 
-        begin("C");
+        /*begin("C");
           S("OO");
           L(0x30000000 + material_index);
           L(0x20000000 + model_index);
-        end("C");
+        end("C");*/
       end("Connections");
       begin("Takes");
         begin("Current");
@@ -104,6 +107,22 @@ namespace meshutils {
         end("Current");
       end("Takes");
       nullnode();
+
+      // like the header, this footer seems to server no function other than to infuriate codec writers.
+      static const uint8_t foot_id[] = { 0xfa,0xbc,0xab,0x09,0xd0,0xc8,0xd4,0x66,0xb1,0x76,0xfb,0x83,0x1c,0xf7,0x26,0x7e,0x00,0x00,0x00,0x00 };
+      for (size_t i = 0; i != sizeof(foot_id); ++i) bytes_.push_back(foot_id[i]);
+
+      //int pad = ((bytes_.size() + 15) & ~15) - bytes_.size();
+      //if (pad == 0) pad = 16;
+      while (bytes_.size() & 0x0f) bytes_.push_back(0x00);
+
+      u4(version);
+      for (int i = 0; i != 120; ++i) bytes_.push_back(0x00);
+
+      // another seemingly pointless binary string
+      static const uint8_t unknown_id[] = { 0xf8,0x5a,0x8c,0x6a,0xde,0xf5,0xd9,0x7e,0xec,0xe9,0x0c,0xe3,0x75,0x8f,0x29,0x0b };
+      for (size_t i = 0; i != sizeof(unknown_id); ++i) bytes_.push_back(unknown_id[i]);
+
       return std::move(bytes_);
     }
   public:
@@ -1045,7 +1064,7 @@ namespace meshutils {
             end("Properties70");
           end("PropertyTemplate");
         end("ObjectType");
-        begin("ObjectType");
+        /*begin("ObjectType");
           S("Material");
           begin("Count");
             I(1);
@@ -1243,7 +1262,7 @@ namespace meshutils {
               end("P");
             end("Properties70");
           end("PropertyTemplate");
-        end("ObjectType");
+        end("ObjectType");*/
       end("Definitions");
     }
 
@@ -1279,7 +1298,7 @@ namespace meshutils {
         end("PolygonVertexIndex");
         begin("Edges");
           std::vector<uint32_t> edges;
-          for (size_t i = 0; i < indices.size(); ++i) {
+          for (size_t i = 0; i < indices.size(); i += 3) {
             edges.push_back(i);
           }
           i(edges.data(), edges.size());
@@ -1309,7 +1328,7 @@ namespace meshutils {
             d(dnormal.data(), dnormal.size());
           end("Normals");
         end("LayerElementNormal");
-        begin("LayerElementMaterial");
+        /*begin("LayerElementMaterial");
           I(0);
           begin("Version");
             I(101);
@@ -1327,7 +1346,7 @@ namespace meshutils {
             uint32_t mat[] = { 0 };
             i(mat, 1);
           end("Materials");
-        end("LayerElementMaterial");
+        end("LayerElementMaterial");*/
         begin("Layer");
           I(0);
           begin("Version");
@@ -1341,14 +1360,14 @@ namespace meshutils {
               I(0);
             end("TypedIndex");
           end("LayerElement");
-          begin("LayerElement");
+          /*begin("LayerElement");
             begin("Type");
               S("LayerElementMaterial");
             end("Type");
             begin("TypedIndex");
               I(0);
             end("TypedIndex");
-          end("LayerElement");
+          end("LayerElement");*/
         end("Layer");
       end("Geometry");
     }
