@@ -1277,6 +1277,13 @@ namespace meshutils {
     void writeGeometry(const mesh &mesh, size_t index) {
       std::vector<uint32_t> indices = mesh.indices32();
       std::vector<glm::vec3> pos = mesh.pos();
+      std::vector<glm::vec3> normal = mesh.normal();
+      std::vector<glm::vec4> color = mesh.color();
+
+      glm::vec4 white(1, 1, 1, 1);
+      bool has_color = false;
+      for (auto c : color) has_color = has_color || (c != white);
+
       begin("Geometry");
         L(index + 0x10000000);
         S("Cube\x00\x01Geometry", 14);
@@ -1326,7 +1333,6 @@ namespace meshutils {
             S("Direct");
           end("ReferenceInformationType");
           begin("Normals");
-            std::vector<glm::vec3> normal = mesh.normal();
             std::vector<double> dnormal;
             for (auto &p : mesh.normal()) {
               dnormal.push_back((double)p.x);
@@ -1355,6 +1361,33 @@ namespace meshutils {
             i(mat, 1);
           end("Materials");
         end("LayerElementMaterial");*/
+        if (has_color) {
+          begin("LayerElementColor");
+            I(0);
+            begin("Version");
+              I(101);
+            end("Version");
+            begin("Name");
+              S("");
+            end("Name");
+            begin("MappingInformationType");
+              S("ByPolygonVertex");
+            end("MappingInformationType");
+            begin("ReferenceInformationType");
+              S("Direct");
+            end("ReferenceInformationType");
+            begin("Colors");
+              std::vector<double> dcolor;
+              for (auto &p : mesh.color()) {
+                dcolor.push_back((double)p.x);
+                dcolor.push_back((double)p.y);
+                dcolor.push_back((double)p.z);
+                dcolor.push_back((double)p.w);
+              }
+              d(dcolor.data(), dcolor.size());
+            end("Colors");
+          end("LayerElementColor");
+        }
         begin("Layer");
           I(0);
           begin("Version");
@@ -1368,6 +1401,16 @@ namespace meshutils {
               I(0);
             end("TypedIndex");
           end("LayerElement");
+          if (has_color) {
+            begin("LayerElement");
+              begin("Type");
+                S("LayerElementColor");
+              end("Type");
+              begin("TypedIndex");
+                I(0);
+              end("TypedIndex");
+            end("LayerElement");
+          }
           /*begin("LayerElement");
             begin("Type");
               S("LayerElementMaterial");
