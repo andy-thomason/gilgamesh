@@ -17,6 +17,7 @@
 
 #include <glm/glm.hpp>
 #include <meshutils/mesh.hpp>
+#include <meshutils/scene.hpp>
 
 // see https://code.blender.org/2013/08/fbx-binary-file-format-specification/
 // and https://banexdevblog.wordpress.com/2014/06/23/a-quick-tutorial-about-the-fbx-ascii-format/
@@ -25,6 +26,13 @@ namespace meshutils {
   class fbx_encoder {
   public:
     fbx_encoder() {
+    }
+
+    std::vector<uint8_t> saveMesh(meshutils::mesh &mesh) {
+      meshutils::scene scene;
+      scene.addMesh(&mesh);
+      scene.addNode(glm::mat4(), 0, 0);
+      return std::move(saveScene(scene));
     }
 
     std::vector<uint8_t> saveScene(const meshutils::scene &scene) {

@@ -9,7 +9,7 @@
 
 #include <meshutils/mesh.hpp>
 #include <meshutils/decoders/pdb_decoder.hpp>
-#include <meshutils/encoders/ply_encoder.hpp>
+#include <meshutils/encoders/fbx_encoder.hpp>
 
 #include <glm/glm.hpp>
 
@@ -58,70 +58,98 @@ void par_for(int begin, int end, F fn) {
   printf("\n");
 }
 
-int main(int argc, char **argv) {
-  const char *pdb_filename = nullptr;
-  const char *output_path = "";
-  const char *grid_spacing_text = "0.25";
-  bool error = false;
+class molecules {
+public:
+  molecules(int argc, char **argv) {
+    const char *pdb_filename = nullptr;
+    const char *output_path = "";
+    const char *grid_spacing_text = "0.25";
+    bool error = false;
+    bool list_chains = false;
+    const char *chains = "A-Z";
 
-  for (int i = 1; i != argc; ++i) {
-    const char *arg = argv[i];
-    printf("arg[%d]=[%s]\n", i, arg);
-    if (!strcmp(arg, "--grid-spacing") && i < argc-1) {
-      grid_spacing_text = argv[++i];
-    } else if (!strcmp(arg, "-o") && i < argc-1) {
-      output_path = argv[++i];
-    } else if (!strcmp(arg, "--help")) {
-      error = true;
-    } else if (arg[0] == '-') {
-      printf("invalid argument %s\n", arg);
-      error = true;
-    } else {
-      if (pdb_filename) { printf("only one file will be considered\n"); error = true; }
-      pdb_filename = arg;
+    for (int i = 1; i != argc; ++i) {
+      const char *arg = argv[i];
+      if (!strcmp(arg, "--grid-spacing") && i < argc-1) {
+        grid_spacing_text = argv[++i];
+      } else if (!strcmp(arg, "--chains") && i < argc-1) {
+        chains = argv[++i];
+      } else if (!strcmp(arg, "-o") && i < argc-1) {
+        output_path = argv[++i];
+      } else if (!strcmp(arg, "--help")) {
+        error = true;
+      } else if (!strcmp(arg, "--list-chains")) {
+        list_chains = true;
+      } else if (arg[0] == '-') {
+        printf("invalid argument %s\n", arg);
+        error = true;
+      } else {
+        if (pdb_filename) { printf("only one file will be considered\n"); error = true; }
+        pdb_filename = arg;
+      }
     }
-  }
 
-  float grid_spacing = float(atof(grid_spacing_text));
+    float grid_spacing = float(atof(grid_spacing_text));
 
-  if (pdb_filename == nullptr || error) {
-    printf(
-      "usage: molecule <options> <pdb file name>\n"
-      "\noptions:\n"
-      "--grid-spacing <n>\tgrid spacing (default 0.25) smaller gives more vertices\n"
-      "--output-path <dir>\tdirectory to output files to\n"
-      "--help <n>\tshow this text\n"
-    ); return 1; }
+    if (pdb_filename == nullptr || error) {
+      printf(
+        "usage: molecule <options> <pdb file name>\n\n"
+        "This example generates solvent exclude meshes for a PDB file.\n"
+        "You can specify which chains to use with the --chains option.\n"
+        "\noptions:\n"
+        "--grid-spacing <n>\tgrid spacing (default 0.25) smaller gives more vertices\n"
+        "--chains <n>\teg. A-E or ABDEG set of chains to use for generating FBX files. defaults to A-Z...\n"
+        "--list-chains <n>\tjust list the chains in the PDB file\n"
+        "--output-path <dir>\tdirectory to output files to\n"
+        "--help <n>\tshow this text\n"
+      ); return; }
 
-  const char *filename = "out";
+    const char *filename = "out";
 
-  //std::ifstream file(CMAKE_SOURCE "/examples/data/2PTC.pdb", std::ios_base::binary);
-  std::ifstream file(pdb_filename, std::ios_base::binary);
-  std::vector<uint8_t> text;
-  if (!file.eof() && !file.fail()) {
-    file.seekg(0, std::ios_base::end);
-    text.resize((size_t)file.tellg());
+    //std::ifstream file(CMAKE_SOURCE "/examples/data/2PTC.pdb", std::ios_base::binary);
+    std::ifstream file(pdb_filename, std::ios_base::binary);
+    std::vector<uint8_t> text;
+    if (!file.eof() && !file.fail()) {
+      file.seekg(0, std::ios_base::end);
+      text.resize((size_t)file.tellg());
 
-    file.seekg(0, std::ios_base::beg);
-    file.read((char*)text.data(), text.size());
-  } 
+      file.seekg(0, std::ios_base::beg);
+      file.read((char*)text.data(), text.size());
+    } 
   
-  meshutils::pdb_decoder pdb(text.data(), text.data() + text.size());
+    meshutils::pdb_decoder pdb(text.data(), text.data() + text.size());
 
-  meshutils::ply_encoder encoder;
+    meshutils::fbx_encoder encoder;
+    std::string pdb_chains = pdb.chains();
   
-  std::string chains = pdb.chains();
-  for (char chainID : chains) {
-    std::vector<glm::vec3> pos = pdb.pos(chainID);
-    std::vector<float> radii = pdb.radii(chainID);
-    std::vector<glm::vec4> colors = pdb.colorsByFunction(chainID);
+    if (list_chains) {
+      printf("chains: %s\n", pdb_chains.c_str());
+      return;
+    }
 
-    // adjust centre of gravity
-    /*glm::vec3 sum = std::accumulate(pos.begin(), pos.end(), glm::vec3(0, 0, 0));
-    glm::vec3 cofg = sum * (1.0f/pos.size());
-    for (auto &p : pos) {
-      p -= cofg;
-    }*/
+    std::vector<glm::vec3> pos;
+    std::vector<float> radii;
+    std::vector<glm::vec4> colors;
+
+    auto addChain = [&](char chainID) {
+      std::vector<glm::vec3> xpos = pdb.pos(chainID);
+      std::vector<float> xradii = pdb.radii(chainID);
+      std::vector<glm::vec4> xcolors = pdb.colorsByFunction(chainID);
+      pos.insert(pos.end(), xpos.begin(), xpos.end());
+      radii.insert(radii.end(), xradii.begin(), xradii.end());
+      colors.insert(colors.end(), xcolors.begin(), xcolors.end());
+    };
+
+    for (const char *p = chains; *p; ++p) {
+      if (p[1] == '-' && p[2] && p[2] >= p[1]) {
+        for (char i = p[1]; i <= p[2]; ++i) {
+          addChain(i);
+        }
+        p += 2;
+      } else {
+        addChain(*p);
+      }
+    }
 
     struct colored_atom {
       glm::vec4 color;
@@ -137,7 +165,6 @@ int main(int argc, char **argv) {
         colored_atoms.push_back(a);
       }
     }
-    printf("chain %c, %d colored atoms\n", chainID, (int)colored_atoms.size());
 
     glm::vec3 min = pos[0];
     glm::vec3 max = pos[0];
@@ -294,9 +321,15 @@ int main(int argc, char **argv) {
     std::string stem;
     stem.assign(last_slash, last_dot);
 
-    const char *out_filename = fmt("%s_%c_%s.ply", stem.c_str(), chainID, grid_spacing_text);
+    const char *out_filename = fmt("%s_%s_%s.fbx", stem.c_str(), chains, grid_spacing_text);
     printf("writing %s\n", out_filename);
     std::ofstream eof(out_filename, std::ios::binary);
-    encoder.encode(emesh, eof, false, "pc");
+    std::vector<uint8_t> bytes = encoder.saveMesh(emesh);
+    eof.write((char*)bytes.data(), bytes.size());
   }
+private:
+};
+
+int main(int argc, char **argv) {
+  molecules m(argc, argv);
 }
