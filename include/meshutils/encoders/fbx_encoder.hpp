@@ -23,6 +23,39 @@
 // and https://banexdevblog.wordpress.com/2014/06/23/a-quick-tutorial-about-the-fbx-ascii-format/
 
 namespace meshutils {
+  template<class ValueType, class IdxType>
+  void make_index(std::vector<ValueType> &values_out, std::vector<IdxType> &idx_out, const std::vector<ValueType> &values_in) {
+    struct evec_t {
+      ValueType v;
+      size_t orginal_idx;
+    };
+
+    std::vector<evec_t> evec(values_in.size());
+    for (size_t i = 0; i != values_in.size(); ++i) {
+      evec[i] = evec_t{ values_in[i], i };
+    }
+
+    std::sort(
+      evec.begin(), evec.end(),
+      [](evec_t &a, evec_t &b) { return memcmp(&a.v, &b.v, sizeof(a.v)) < 0; }
+    );
+
+    values_out.resize(0);
+    idx_out.resize(evec.size());
+    size_t index = 0;
+    for (size_t i = 0; i != evec.size();) {
+      evec_t &e = evec[i];
+      size_t new_idx = values_out.size();
+      values_out.push_back(e.v);
+      idx_out[e.orginal_idx] = (IdxType)new_idx;
+      ++i;
+      while (i != evec.size() && !memcmp(&evec[i].v, &e.v, sizeof(e.v))) {
+        idx_out[evec[i].orginal_idx] = (IdxType)new_idx;
+        ++i;
+      }
+    }
+  }
+
   class fbx_encoder {
   public:
     fbx_encoder() {
@@ -83,6 +116,7 @@ namespace meshutils {
           writeModel(transforms[i], i);
         }
 
+        // todo: support materials
         //writeMaterial(0);
       end("Objects");
 
@@ -109,6 +143,8 @@ namespace meshutils {
           L(0x20000000 + model_index);
         end("C");*/
       end("Connections");
+
+      // todo: (maybe) support animation.
       begin("Takes");
         begin("Current");
           S("");
@@ -1280,9 +1316,24 @@ namespace meshutils {
       std::vector<glm::vec3> normal = mesh.normal();
       std::vector<glm::vec4> color = mesh.color();
 
+      for (auto &p : color) {
+        printf("%f %f %f %f\n", p.x, p.y, p.z, p.w);
+      }
+
+      std::vector<glm::vec3> epos;
+      //std::vector<glm::vec3> enormal;
+      std::vector<glm::vec4> ecolor;
+      std::vector<glm::uint32_t> ipos;
+      //std::vector<glm::uint32_t> inormal;
+      std::vector<glm::uint32_t> icolor;
+
+      make_index(epos, ipos, pos);
+      //make_index(epos, ipos, pos);
+      make_index(ecolor, icolor, color);
+
       glm::vec4 white(1, 1, 1, 1);
-      bool has_color = false;
-      for (auto c : color) has_color = has_color || (c != white);
+      bool has_color = ecolor.size() != 1 || ecolor[0] != white;
+      printf("has_color=%d\n", has_color);
 
       begin("Geometry");
         L(index + 0x10000000);
@@ -1295,7 +1346,8 @@ namespace meshutils {
         end("GeometryVersion");
         begin("Vertices");
           std::vector<double> dpos;
-          for (auto &p : mesh.pos()) {
+          dpos.reserve(epos.size() * 3);
+          for (auto &p : epos) {
             dpos.push_back((double)p.x);
             dpos.push_back((double)p.y);
             dpos.push_back((double)p.z);
@@ -1304,10 +1356,10 @@ namespace meshutils {
         end("Vertices");
         begin("PolygonVertexIndex");
           std::vector<uint32_t> pvi;
-          for (size_t i = 0; i < indices.size(); i += 3) {
-            pvi.push_back(indices[i+0]);
-            pvi.push_back(indices[i+1]);
-            pvi.push_back(~indices[i+2]);
+          for (size_t i = 0; i < ipos.size(); i += 3) {
+            pvi.push_back(ipos[i+0]);
+            pvi.push_back(ipos[i+1]);
+            pvi.push_back(~ipos[i+2]);
           }
           i(pvi.data(), pvi.size());
         end("PolygonVertexIndex");
@@ -1368,17 +1420,18 @@ namespace meshutils {
               I(101);
             end("Version");
             begin("Name");
-              S("");
+              S("Colour");
             end("Name");
             begin("MappingInformationType");
               S("ByPolygonVertex");
             end("MappingInformationType");
             begin("ReferenceInformationType");
-              S("Direct");
+              S("IndexToDirect");
             end("ReferenceInformationType");
             begin("Colors");
               std::vector<double> dcolor;
-              for (auto &p : mesh.color()) {
+              dcolor.reserve(ecolor.size() * 4);
+              for (auto &p : ecolor) {
                 dcolor.push_back((double)p.x);
                 dcolor.push_back((double)p.y);
                 dcolor.push_back((double)p.z);
@@ -1386,6 +1439,9 @@ namespace meshutils {
               }
               d(dcolor.data(), dcolor.size());
             end("Colors");
+            begin("ColorIndex");
+              i(icolor.data(), icolor.size());
+            end("ColorIndex");
           end("LayerElementColor");
         }
         begin("Layer");

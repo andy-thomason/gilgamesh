@@ -290,13 +290,17 @@ namespace meshutils {
       std::vector<double> fbxVertices;
       std::vector<double> fbxNormals;
       std::vector<double> fbxUVs;
+      std::vector<double> fbxColors;
       std::vector<int32_t> fbxUVIndices;
+      std::vector<int32_t> fbxColorIndices;
       std::vector<int32_t> fbxNormalIndices;
       std::vector<int32_t> fbxIndices;
       std::string fbxNormalMapping;
       std::string fbxUVMapping;
+      std::string fbxColorMapping;
       std::string fbxNormalRef;
       std::string fbxUVRef;
+      std::string fbxColorRef;
 
       std::vector<uint64_t> geometryIds;
       std::vector<uint64_t> modelIds;
@@ -343,6 +347,20 @@ namespace meshutils {
                       vp.getArray<double, 'd'>(fbxUVs, decoder_);
                     }
                   }
+                } else if (comp.name_is("LayerElementColor")) {
+                  for (auto sub : comp) {
+                    auto vp = sub.get_props().begin();
+                    if (debug) printf("  %s %c\n", sub.name().c_str(), vp.kind());
+                    if (sub.name_is("MappingInformationType")) {
+                      vp.getString(fbxColorMapping);
+                    } else if (sub.name_is("ReferenceInformationType")) {
+                      vp.getString(fbxColorRef);
+                    } else if (sub.name_is("ColorIndex")) {
+                      vp.getArray<int32_t, 'i'>(fbxColorIndices, decoder_);
+                    } else if (sub.name_is("Colors")) {
+                      vp.getArray<double, 'd'>(fbxColors, decoder_);
+                    }
+                  }
                 } else if (comp.name_is("PolygonVertexIndex")) {
                   vp.getArray<int32_t, 'i'>(fbxIndices, decoder_);
                 }
@@ -350,8 +368,10 @@ namespace meshutils {
 
               auto normalMapping = fbx_decoder::decodeMapping(fbxNormalMapping);
               auto uvMapping = fbx_decoder::decodeMapping(fbxUVMapping);
+              auto cMapping = fbx_decoder::decodeMapping(fbxColorMapping);
               auto normalRef = fbx_decoder::decodeRef(fbxNormalRef);
               auto uvRef = fbx_decoder::decodeRef(fbxUVRef);
+              auto cRef = fbx_decoder::decodeRef(fbxColorRef);
 
               if (fbxNormals.empty()) {
                 fbxNormals.resize(3);
@@ -359,11 +379,15 @@ namespace meshutils {
               if (fbxUVs.empty()) {
                 fbxUVs.resize(2);
               }
+              if (fbxColors.empty()) {
+                fbxColors.resize(4);
+                fbxColors[0] = fbxColors[1] = fbxColors[2] = fbxColors[3] = 1;
+              }
 
               // https://banexdevblog.wordpress.com/2014/06/23/a-quick-tutorial-about-the-fbx-ascii-format/
               if (debug) printf("%s %s\n", fbxNormalMapping.c_str(), fbxUVMapping.c_str());
               if (debug) printf("%s %s\n", fbxNormalRef.c_str(), fbxUVRef.c_str());
-              if (debug) printf("%d vertices %d indices %d normals %d uvs %d uvindices\n", (int)fbxVertices.size(), (int)fbxIndices.size(), (int)fbxNormals.size(), (int)fbxUVs.size(), (int)fbxUVIndices.size());
+              if (debug) printf("%d vertices %d indices %d normals %d uvs %d colors %d uvindices\n", (int)fbxVertices.size(), (int)fbxIndices.size(), (int)fbxNormals.size(), (int)fbxUVs.size(), (int)fbxColors.size(), (int)fbxUVIndices.size());
 
               std::vector<glm::vec3> pos;
               std::vector<glm::vec3> normal;
@@ -376,19 +400,18 @@ namespace meshutils {
               for (size_t i = 0; i != fbxIndices.size(); ++i) {
                 size_t ni = normalRef == fbx_decoder::Ref::IndexToDirect ? fbxNormalIndices[i] : i;
                 size_t uvi = uvRef == fbx_decoder::Ref::IndexToDirect ? fbxUVIndices[i] : i;
+                size_t ci = cRef == fbx_decoder::Ref::IndexToDirect ? fbxColorIndices[i] : i;
                 int32_t vi = fbxIndices[i];
                 if (vi < 0) vi = -1 - vi;
 
-                glm::vec3 vpos(fbxVertices[vi*3+0], fbxVertices[vi*3+1], fbxVertices[vi*3+2]);
-                glm::vec3 vnormal(1, 0, 0);
-                glm::vec2 vuv(0, 0);
-                glm::vec4 vcolor(1, 1, 1, 1);
-
                 size_t nj = map(normalMapping, pi, ni, vi);
                 size_t uvj = map(uvMapping, pi, uvi, vi);
+                size_t cj = map(cMapping, pi, ci, vi);
 
-                vnormal = glm::vec3(fbxNormals[nj*3+0], fbxNormals[nj*3+1], fbxNormals[nj*3+2]);
-                vuv = glm::vec2(fbxUVs[uvj*2+0], fbxUVs[uvj*2+1]);
+                glm::vec3 vpos(fbxVertices[vi*3+0], fbxVertices[vi*3+1], fbxVertices[vi*3+2]);
+                glm::vec3 vnormal = glm::vec3(fbxNormals[nj*3+0], fbxNormals[nj*3+1], fbxNormals[nj*3+2]);
+                glm::vec2 vuv = glm::vec2(fbxUVs[uvj*2+0], fbxUVs[uvj*2+1]);
+                glm::vec4 vcolor = glm::vec4(fbxColors[cj*2+0], fbxColors[cj*2+1], fbxColors[cj*2+2], fbxColors[cj*2+3]);
 
                 pos.push_back(vpos);
                 normal.push_back(vnormal);
@@ -397,7 +420,6 @@ namespace meshutils {
 
                 pi += fbxIndices[i] < 0;
               }
-
 
               // map the fbx data to real indices
               // todo: add a function to re-index

@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   }
 
   if (filename == nullptr) {
-    filename = CMAKE_SOURCE "/examples/data/plane.fbx";
+    filename = CMAKE_SOURCE "/examples/data/cube.fbx";
   }
 
   std::ifstream file(filename, std::ios_base::binary);
