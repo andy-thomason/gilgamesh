@@ -20,6 +20,12 @@
 
 namespace meshutils {
 
+struct attribute {
+  const char *name;
+  int number_of_channels;
+  char type; // see https://docs.python.org/2/library/struct.html
+};
+
 // base class for all meshes.
 class mesh {
 public:
@@ -29,6 +35,7 @@ public:
   virtual ~mesh() {
   }
 
+  // bulk read operations
   virtual std::vector<glm::vec3> pos() const  = 0;
   virtual std::vector<glm::vec3> normal() const = 0;
   virtual std::vector<glm::vec2> uv(int index) const = 0;
@@ -50,6 +57,7 @@ public:
   }
 
   // mesh virtual methods
+  // bulk read operations
   std::vector<glm::vec3> pos() const override {
     std::vector<glm::vec3> result;
     for (auto &v : vertices_) {
@@ -92,9 +100,11 @@ public:
     return std::move(result);
   }
 
+  std::vector<vertex_t> &vertices() { return vertices_; }
   const std::vector<vertex_t> &vertices() const { return vertices_; }
   size_t vertexSize() const { return sizeof(vertex_t); }
 
+  std::vector<index_t> &indices() { return indices_; }
   const std::vector<index_t> &indices() const { return indices_; }
   size_t indexSize() const { return sizeof(index_t); }
 
@@ -194,11 +204,35 @@ public:
     }
   #endif
 
-  const char *getFormat() const {
+  const attribute *getFormat() const {
     return MeshTraits::getFormat();
   }
 
   void reindex(bool recalcNormals = false) {
+    if (recalcNormals) {
+      // zero all normals
+      for (size_t i = 0; i < vertices_.size(); ++i) {
+        vertices_[i].normal(glm::vec3(0, 0, 0));
+      }
+
+      // accumulate normals on shared vertices
+      for (size_t i = 0; i+2 < indices_.size(); i += 3) {
+        size_t i0 = indices_[i+0];
+        size_t i1 = indices_[i+1];
+        size_t i2 = indices_[i+2];
+        auto &v0 = vertices_[i0];
+        auto &v1 = vertices_[i1];
+        auto &v2 = vertices_[i2];
+        glm::vec3 p0 = v0.pos();
+        glm::vec3 p1 = v1.pos();
+        glm::vec3 p2 = v2.pos();
+        glm::vec3 normal = glm::normalize(glm::cross(p1-p0, p2-p0));
+        v0.normal(v0.normal() + normal);
+        v1.normal(v1.normal() + normal);
+        v2.normal(v2.normal() + normal);
+      }
+    }
+
     std::vector<expandedVertex> expanded = expand();
     if (recalcNormals) {
       std::sort(
@@ -227,6 +261,7 @@ public:
         }
       }
     }
+
     compact(expanded);
   }
 
@@ -387,35 +422,32 @@ public:
   }
 
   // write the mesh as a CSV file
+  const basic_mesh &writeCSV(const std::string &filename) const {
+    std::ofstream file(filename, std::ios_base::binary);
+    return writeCSV(file);
+  }
+
+  // write the mesh as a CSV file
   const basic_mesh &writeCSV(std::ostream &os) const {
-    const char *format = getFormat();
+    auto format = getFormat();
     char buf[256];
     {
-      const char *fp = format;
       char *dp = buf, *ep = buf + sizeof(buf) - 1;
-      while (*fp != 0) {
-        while (*fp != ':' && *fp != 0 && dp < ep) { *dp++ = *fp++; }
-        if (*fp == ':') ++fp;
-        int n = 0;
-        while (*fp >= '0' && *fp <= '9') n = n * 10 + *fp++ - '0';
-        if (*fp) ++fp;
-        if (*fp == ',') ++fp;
-        while (n--) if (dp != ep && (*fp || n)) { *dp++ = ','; }
+      for (auto fp = format; fp->name; ++fp) {
+        for (auto p = fp->name; *p; ++p) { *dp++ = *p; }
+        int n = fp->number_of_channels;
+        while (n--) if (dp != ep && (fp[1].name || n)) { *dp++ = ','; }
       }
       if (dp != ep) *dp++ = '\n';
       os.write(buf, dp - buf);
     }
 
     for (size_t i = 0; i != indices_.size(); ++i) {
-      const char *fp = format;
       const void *sp = (const char *)&vertices_[indices_[i]];
       char *dp = buf, *ep = buf + sizeof(buf) - 1;
-      while (*fp != 0) {
-        while (*fp != ':' && *fp != 0 && dp < ep) ++fp;
-        if (*fp == ':') ++fp;
-        int n = 0;
-        while (*fp >= '0' && *fp <= '9') n = n * 10 + *fp++ - '0';
-        if (*fp) switch (*fp++) {
+      for (auto fp = format; fp->name; ++fp) {
+        int n = fp->number_of_channels;
+        switch (fp->type) {
           case 'f': {
             while (n--) {
               float value = *((float*&)sp)++;
@@ -424,11 +456,10 @@ public:
               #else
                 dp += ::snprintf(dp, ep-dp, "%f", value);
               #endif
-              if (dp != ep && (*fp || n)) { *dp++ = ','; }
+              if (dp != ep && (fp[1].name || n)) { *dp++ = ','; }
             }
           } break;
         }
-        if (*fp == ',') ++fp;
       }
       if (dp != ep) *dp++ = '\n';
       if (i % 3 == 2 && dp != ep) *dp++ = '\n';
@@ -520,12 +551,6 @@ private:
   std::vector<index_t> indices_;
 };
 
-struct attribute {
-  const char *name;
-  int number_of_channels;
-  char type; // see https://docs.python.org/2/library/struct.html
-};
-
 // position only mesh
 struct pos_mesh_traits {
   class vertex_t {
@@ -559,8 +584,12 @@ struct pos_mesh_traits {
     glm::vec3 pos_;
   };
 
-  static const char *getFormat() {
-    return "pos:3f";
+  static const attribute *getFormat() {
+    static const attribute format[] = {
+      "pos", 3, 'f',
+      nullptr, 0, '\0'
+    };
+    return format;
   }
 
   typedef uint32_t index_t;
@@ -601,13 +630,14 @@ struct simple_mesh_traits {
     glm::vec2 uv_;
   };
 
-  const attribute *getFormat() {
+  static const attribute *getFormat() {
     static const attribute format[] = {
       "pos", 3, 'f',
       "normal", 3, 'f',
       "uv", 2, 'f',
       nullptr, 0, '\0'
     };
+    return format;
   }
 
   typedef uint32_t index_t;
@@ -651,7 +681,7 @@ struct color_mesh_traits {
     glm::vec4 color_;
   };
 
-  const attribute *getFormat() {
+  static const attribute *getFormat() {
     static const attribute format[] = {
       "pos", 3, 'f',
       "normal", 3, 'f',
@@ -659,6 +689,7 @@ struct color_mesh_traits {
       "color", 4, 'f',
       nullptr, 0, '\0'
     };
+    return format;
   }
 
   typedef uint32_t index_t;

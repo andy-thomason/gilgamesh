@@ -10,6 +10,21 @@
 #include <meshutils/encoders/fbx_encoder.hpp>
 
 int main(int argc, char **argv) {
+  /*{
+    meshutils::color_mesh m;
+    m.addCube();
+    m.vertices()[0].color(glm::vec4(0, 0, 1, 1));
+    meshutils::fbx_encoder enc;
+    auto bytes = enc.saveMesh(m);
+    meshutils::fbx_decoder dumper((char*)bytes.data(), (char*)bytes.data() + bytes.size());
+    std::ofstream("scube.dump") << dumper;
+    std::ofstream("scube.fbx", std::ios_base::binary).write((char*)bytes.data(), bytes.size());
+
+    return 0;
+  }*/
+  
+
+
   const char *filename = nullptr;
   for (int i = 1; i != argc; ++i) {
     const char *arg = argv[i];

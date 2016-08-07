@@ -291,6 +291,7 @@ public:
       glm::vec3 normal(1, 0, 0);
       glm::vec2 uv(0, 0);
       glm::vec4 color = glm::vec4(1, 1, 1, 1);
+      int num_influences = 1;
       for (size_t i = 0; i != colored_atoms.size(); ++i) {
         glm::vec3 &pos = colored_atoms[i].pos;
         float r = colored_atoms[i].radius;
@@ -299,11 +300,13 @@ public:
         if (weight > 0) {
           weight = std::max(0.0f, std::min(weight, 1.0f));
           color += colored_atoms[i].color * weight;
+          num_influences++;
         }
       }
-      color.w = 0;
-      color = glm::normalize(color);
       color.w = 1;
+      color.x *= (1.0f/num_influences);
+      color.y *= (1.0f/num_influences);
+      color.z *= (1.0f/num_influences);
       return meshutils::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 
@@ -317,6 +320,12 @@ public:
     for (const char *p = last_slash; *p; ++p) {
       if (*p == '.') last_dot = p;
     }
+
+    // build normals
+    emesh.reindex(true);
+
+    //auto str = std::ofstream("1.txt");
+    //emesh.writeCSV(str);
 
     std::string stem;
     stem.assign(last_slash, last_dot);

@@ -3,6 +3,8 @@
 // (C) Andy Thomason 2016
 //
 // Fbx file decoder
+//
+// Interpret an array of bytes as an FBX binary file
 // 
 
 #ifndef VKU_fbx_decoder_INCLUDED
@@ -411,7 +413,7 @@ namespace meshutils {
                 glm::vec3 vpos(fbxVertices[vi*3+0], fbxVertices[vi*3+1], fbxVertices[vi*3+2]);
                 glm::vec3 vnormal = glm::vec3(fbxNormals[nj*3+0], fbxNormals[nj*3+1], fbxNormals[nj*3+2]);
                 glm::vec2 vuv = glm::vec2(fbxUVs[uvj*2+0], fbxUVs[uvj*2+1]);
-                glm::vec4 vcolor = glm::vec4(fbxColors[cj*2+0], fbxColors[cj*2+1], fbxColors[cj*2+2], fbxColors[cj*2+3]);
+                glm::vec4 vcolor = glm::vec4(fbxColors[cj*4+0], fbxColors[cj*4+1], fbxColors[cj*4+2], fbxColors[cj*4+3]);
 
                 pos.push_back(vpos);
                 normal.push_back(vnormal);
@@ -434,6 +436,8 @@ namespace meshutils {
                   j = i + 1;
                 }
               }
+
+              for (auto i : indices) printf("i%d ", (int)i); printf("\n");
 
               MeshType *mesh = new MeshType(pos, normal, uv, color, indices);
               scene.addMesh(mesh);

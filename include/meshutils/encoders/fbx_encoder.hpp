@@ -27,7 +27,7 @@ namespace meshutils {
   void make_index(std::vector<ValueType> &values_out, std::vector<IdxType> &idx_out, const std::vector<ValueType> &values_in) {
     struct evec_t {
       ValueType v;
-      size_t orginal_idx;
+      size_t original_idx;
     };
 
     std::vector<evec_t> evec(values_in.size());
@@ -47,10 +47,10 @@ namespace meshutils {
       evec_t &e = evec[i];
       size_t new_idx = values_out.size();
       values_out.push_back(e.v);
-      idx_out[e.orginal_idx] = (IdxType)new_idx;
+      idx_out[e.original_idx] = (IdxType)new_idx;
       ++i;
       while (i != evec.size() && !memcmp(&evec[i].v, &e.v, sizeof(e.v))) {
-        idx_out[evec[i].orginal_idx] = (IdxType)new_idx;
+        idx_out[evec[i].original_idx] = (IdxType)new_idx;
         ++i;
       }
     }
@@ -1316,24 +1316,16 @@ namespace meshutils {
       std::vector<glm::vec3> normal = mesh.normal();
       std::vector<glm::vec4> color = mesh.color();
 
-      for (auto &p : color) {
-        printf("%f %f %f %f\n", p.x, p.y, p.z, p.w);
-      }
-
       std::vector<glm::vec3> epos;
-      //std::vector<glm::vec3> enormal;
       std::vector<glm::vec4> ecolor;
       std::vector<glm::uint32_t> ipos;
-      //std::vector<glm::uint32_t> inormal;
       std::vector<glm::uint32_t> icolor;
 
       make_index(epos, ipos, pos);
-      //make_index(epos, ipos, pos);
       make_index(ecolor, icolor, color);
 
       glm::vec4 white(1, 1, 1, 1);
       bool has_color = ecolor.size() != 1 || ecolor[0] != white;
-      printf("has_color=%d\n", has_color);
 
       begin("Geometry");
         L(index + 0x10000000);
@@ -1356,20 +1348,20 @@ namespace meshutils {
         end("Vertices");
         begin("PolygonVertexIndex");
           std::vector<uint32_t> pvi;
-          for (size_t i = 0; i < ipos.size(); i += 3) {
-            pvi.push_back(ipos[i+0]);
-            pvi.push_back(ipos[i+1]);
-            pvi.push_back(~ipos[i+2]);
+          for (size_t i = 0; i < indices.size(); i += 3) {
+            pvi.push_back(ipos[indices[i+0]]);
+            pvi.push_back(ipos[indices[i+1]]);
+            pvi.push_back(~ipos[indices[i+2]]);
           }
           i(pvi.data(), pvi.size());
         end("PolygonVertexIndex");
-        begin("Edges");
+        /*begin("Edges");
           std::vector<uint32_t> edges;
           for (size_t i = 0; i < indices.size(); i += 3) {
             edges.push_back(i);
           }
           i(edges.data(), edges.size());
-        end("Edges");
+        end("Edges");*/
         begin("LayerElementNormal");
           I(0);
           begin("Version");
@@ -1386,7 +1378,8 @@ namespace meshutils {
           end("ReferenceInformationType");
           begin("Normals");
             std::vector<double> dnormal;
-            for (auto &p : mesh.normal()) {
+            for (size_t i = 0; i < indices.size(); ++i) {
+              auto &p = normal[indices[i]];
               dnormal.push_back((double)p.x);
               dnormal.push_back((double)p.y);
               dnormal.push_back((double)p.z);
@@ -1440,7 +1433,11 @@ namespace meshutils {
               d(dcolor.data(), dcolor.size());
             end("Colors");
             begin("ColorIndex");
-              i(icolor.data(), icolor.size());
+              std::vector<uint32_t> iicolor(indices.size());
+              for (size_t i = 0; i < indices.size(); ++i) {
+                iicolor[i] = icolor[indices[i]];
+              }
+              i(iicolor.data(), iicolor.size());
             end("ColorIndex");
           end("LayerElementColor");
         }
