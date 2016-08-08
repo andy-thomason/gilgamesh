@@ -19,6 +19,7 @@
 #include <meshutils/scene.hpp>
 #include <minizip/deflate_decoder.hpp>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 // see https://code.blender.org/2013/08/fbx-binary-file-format-specification/
 // and https://banexdevblog.wordpress.com/2014/06/23/a-quick-tutorial-about-the-fbx-ascii-format/
@@ -446,8 +447,9 @@ namespace meshutils {
               modelIds.push_back(ovp.getLong());
               std::string str1;
               std::string str2;
-              double rx = 0, ry = 0, rz = 0;
-              double sx = 0, sy = 0, sz = 0;
+              glm::vec3 lcl_trans(0);
+              glm::vec3 lcl_rot(0);
+              glm::vec3 lcl_scale(100);
               for (auto comp : obj) {
                 if (comp.name_is("Properties70")) {
                   for (auto prop : comp) {
@@ -461,22 +463,39 @@ namespace meshutils {
                       ++prop;
                       ++prop;
                       if (str1 == "Lcl Rotation") {
-                        rx = prop.getDouble(); ++prop;
-                        ry = prop.getDouble(); ++prop;
-                        rz = prop.getDouble();
+                        lcl_rot.x = (float)prop.getDouble(); ++prop;
+                        lcl_rot.y = (float)prop.getDouble(); ++prop;
+                        lcl_rot.z = (float)prop.getDouble();
                       } else if (str1 == "Lcl Scaling") {
-                        sx = prop.getDouble(); ++prop;
-                        sy = prop.getDouble(); ++prop;
-                        sz = prop.getDouble();
+                        lcl_scale.x = (float)prop.getDouble(); ++prop;
+                        lcl_scale.y = (float)prop.getDouble(); ++prop;
+                        lcl_scale.z = (float)prop.getDouble();
+                      } else if (str1 == "Lcl Translation") {
+                        lcl_trans.x = (float)prop.getDouble(); ++prop;
+                        lcl_trans.y = (float)prop.getDouble(); ++prop;
+                        lcl_trans.z = (float)prop.getDouble();
                       }
                     }
                   }
                 }
               }
+
               // see blen_read_object_transform_do
               // in /usr/share/blender/2.77/scripts/addons/io_scene_fbx/import_fbx.py
-              // todo: support pivots and other 
+              // todo: support pivots and other components
               glm::mat4 mat;
+              mat = glm::scale(mat, lcl_scale * (1.0f/100));
+              mat = glm::rotate(mat, lcl_rot.x * 0.01745329f, glm::vec3(1, 0, 0));
+              mat = glm::rotate(mat, lcl_rot.y * 0.01745329f, glm::vec3(0, 1, 0));
+              mat = glm::rotate(mat, lcl_rot.z * 0.01745329f, glm::vec3(0, 0, 1));
+              mat = glm::translate(mat, lcl_trans);
+              /*printf(
+                "[[%f %f %f %f] [%f %f %f %f] [%f %f %f %f] [%f %f %f %f]]\n",
+                mat[0].x, mat[0].y, mat[0].z, mat[0].w,
+                mat[1].x, mat[1].y, mat[1].z, mat[1].w,
+                mat[2].x, mat[2].y, mat[2].z, mat[2].w,
+                mat[3].x, mat[3].y, mat[3].z, mat[3].w
+              );*/
               transforms.push_back(mat);
               parents.push_back(0);
               meshIdxs.push_back(0);

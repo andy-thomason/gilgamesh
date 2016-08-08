@@ -61,6 +61,16 @@ namespace meshutils {
     fbx_encoder() {
     }
 
+    void saveMesh(meshutils::mesh &mesh, const std::string &filename) {
+      auto bytes = saveMesh(mesh);
+      std::ofstream(filename, std::ios_base::binary).write((char*)bytes.data(), bytes.size());
+    }
+
+    void saveScene(const meshutils::scene &scene, const std::string &filename) {
+      auto bytes = saveScene(scene);
+      std::ofstream(filename, std::ios_base::binary).write((char*)bytes.data(), bytes.size());
+    }
+
     std::vector<uint8_t> saveMesh(meshutils::mesh &mesh) {
       meshutils::scene scene;
       scene.addMesh(&mesh);
@@ -1476,7 +1486,44 @@ namespace meshutils {
       end("Geometry");
     }
 
-    void writeModel(const glm::mat4 &transform, size_t index) {
+    void writeModel(const glm::mat4 &mat, size_t index) {
+      // transpose of rotation matrix
+      glm::vec3 xrow(mat[0].x, mat[1].x, mat[2].x);
+      glm::vec3 yrow(mat[0].y, mat[1].y, mat[2].y);
+      glm::vec3 zrow(mat[0].z, mat[1].z, mat[2].z);
+
+      // derive scale from transpose
+      glm::vec3 scale(
+        glm::length(xrow),
+        glm::length(yrow),
+        glm::length(zrow)
+      );
+
+      // remove scale
+      xrow /= scale.x;
+      yrow /= scale.y;
+      zrow /= scale.z;
+
+      // translation
+      glm::vec3 translate = xrow * mat[3].x + yrow * mat[3].y + zrow * mat[3].z;
+
+      // http://www.staff.city.ac.uk/~sbbh653/publications/euler.pdf
+      // http://www.geometrictools.com/Documentation/EulerAngles.pdf
+      float rx = 0, ry = 0, rz = 0;
+      if (xrow.z >= 0.99999f) {
+        ry = 90;
+        rx = std::atan2(yrow.x, yrow.y) * 57.29577951308232f;
+        rz = 0;
+      } else if (xrow.z <= -0.99999f) {
+        ry = -90;
+        rx = -std::atan2(yrow.x, yrow.y) * 57.29577951308232f;
+        rz = 0;
+      } else {
+        ry = std::asin(xrow.z) * 57.29577951308232f;
+        rx = std::atan2(-yrow.z, zrow.z) * 57.29577951308232f;
+        rz = std::atan2(-xrow.y, xrow.x) * 57.29577951308232f;
+      }
+
       begin("Model");
         //L(511284486);
         L(0x20000000 + index);
@@ -1491,18 +1538,27 @@ namespace meshutils {
             S("Lcl Rotation");
             S("");
             S("A");
-            D(-90.000009);
-            D(  0.000000);
-            D(  0.000000);
+            D(rx);
+            D(ry);
+            D(rz);
           end("P");
           begin("P");
             S("Lcl Scaling");
             S("Lcl Scaling");
             S("");
             S("A");
-            D(100.000000);
-            D(100.000000);
-            D(100.000000);
+            D(scale.x * 100);
+            D(scale.y * 100);
+            D(scale.z * 100);
+          end("P");
+          begin("P");
+            S("Lcl Translation");
+            S("Lcl Translation");
+            S("");
+            S("A");
+            D(translate.x);
+            D(translate.y);
+            D(translate.z);
           end("P");
           begin("P");
             S("DefaultAttributeIndex");
@@ -1537,7 +1593,6 @@ namespace meshutils {
     void writeMaterial(size_t index) {
       begin("Material");
         L(0x30000000 + index);
-        //L(679977183);
         S("Material\x00\x01Material", 18);
         S("");
         begin("Version");

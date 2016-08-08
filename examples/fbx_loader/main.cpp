@@ -2,6 +2,8 @@
 //
 // (C) Andy Thomason 2016
 //
+// example of FBX file decoder and encoder
+//
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <meshutils/mesh.hpp>
@@ -10,21 +12,6 @@
 #include <meshutils/encoders/fbx_encoder.hpp>
 
 int main(int argc, char **argv) {
-  /*{
-    meshutils::color_mesh m;
-    m.addCube();
-    m.vertices()[0].color(glm::vec4(0, 0, 1, 1));
-    meshutils::fbx_encoder enc;
-    auto bytes = enc.saveMesh(m);
-    meshutils::fbx_decoder dumper((char*)bytes.data(), (char*)bytes.data() + bytes.size());
-    std::ofstream("scube.dump") << dumper;
-    std::ofstream("scube.fbx", std::ios_base::binary).write((char*)bytes.data(), bytes.size());
-
-    return 0;
-  }*/
-  
-
-
   const char *filename = nullptr;
   for (int i = 1; i != argc; ++i) {
     const char *arg = argv[i];
@@ -49,12 +36,8 @@ int main(int argc, char **argv) {
     file.read((char*)text.data(), text.size());
     meshutils::fbx_decoder fbx(text.data(), text.data() + text.size());
 
-    std::ofstream txt1("1.txt", std::ios_base::binary);
-    std::ofstream txt2("2.txt", std::ios_base::binary);
-
-    const char *out_filename = "test.fbx";
-
-    txt1 << fbx;
+    // dump input to text file
+    std::ofstream("1.txt", std::ios_base::binary) << fbx;
 
     meshutils::scene scene;
     fbx.loadScene<meshutils::color_mesh>(scene);
@@ -67,19 +50,12 @@ int main(int argc, char **argv) {
     const char *beg = (char*)bytes.data();
     const char *end = beg + bytes.size();
 
-    /*int err = 0;
-    for (size_t i = 3500; i != end-beg && err != 100; ++i) {
-      printf("[%d %02x %02x %c %s", (int)i, text[i] & 0xff, beg[i] & 0xff, text[i] < ' ' || text[i] >= 0x7f ? '.' : text[i], text[i] != beg[i] ? "]\n" : "]");
-      err += text[i] != beg[i];
-    }
-    printf("\n");*/
-
+    // dump output to text file (so we can diff them)
     meshutils::fbx_decoder fbx2(beg, end);
-    txt2 << fbx2;
+    std::ofstream("2.txt", std::ios_base::binary) << fbx2;
 
     std::ofstream outfile("out.fbx", std::ios_base::binary);
     outfile.write(beg, end-beg);
-    
     return 0;
   } else {
     std::cerr << "uable to open file " << filename << "\n";

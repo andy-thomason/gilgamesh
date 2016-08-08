@@ -1,16 +1,18 @@
 
 #include <meshutils/mesh.hpp>
-#include <meshutils/encoders/ply_encoder.hpp>
+#include <meshutils/box.hpp>
+#include <meshutils/encoders/fbx_encoder.hpp>
 #include <fstream>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 int main() {
   meshutils::simple_mesh mesh;
 
   printf("building a cube\n");
-  mesh.addCube();
+  meshutils::box box{};
+  box.build(mesh);
 
-  printf("writing a stanford ply file\n");
-  meshutils::ply_encoder enc;
-  std::ofstream of("cube.ply", std::ios::binary);
-  enc.encode(mesh, of);
+  printf("writing a fbx file\n");
+  meshutils::fbx_encoder().saveMesh(mesh, "cube.fbx");
 }
