@@ -399,6 +399,12 @@ public:
     return *this;
   }
 
+  const basic_mesh &reset() {
+    vertices_.reset();
+    indices_.reset();
+    return *this;
+  }
+
 private:
   struct expandedVertex {
     vertex_t vtx;

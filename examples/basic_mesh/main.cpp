@@ -1,6 +1,7 @@
 
 #include <meshutils/mesh.hpp>
 #include <meshutils/box.hpp>
+#include <meshutils/sphere.hpp>
 #include <meshutils/encoders/fbx_encoder.hpp>
 #include <fstream>
 #include <glm/glm.hpp>
@@ -13,6 +14,15 @@ int main() {
   meshutils::box box{};
   box.build(mesh);
 
-  printf("writing a fbx file\n");
+  printf("writing cube.fbx\n");
   meshutils::fbx_encoder().saveMesh(mesh, "cube.fbx");
+
+  //mesh.reset();
+
+  printf("building a sphere\n");
+  meshutils::sphere sphere{};
+  sphere.build(mesh);
+
+  printf("writing sphere.fbx\n");
+  meshutils::fbx_encoder().saveMesh(mesh, "sphere.fbx");
 }
