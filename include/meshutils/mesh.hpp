@@ -120,10 +120,10 @@ public:
     return result;
   }
 
-  index_t addVertexTransformed(const glm::mat4 &transform, const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv) {
+  index_t addVertexTransformed(const glm::mat4 &transform, const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv, const glm::vec4 &color) {
     glm::vec3 tpos = (glm::vec3)(transform * glm::vec4(pos.x, pos.y, pos.z, 1.0f));
     glm::vec3 tnormal = glm::normalize((glm::vec3)(transform * glm::vec4(normal.x, normal.y, normal.z, 0.0f)));
-    vertex_t vtx(tpos, tnormal, uv);
+    vertex_t vtx(tpos, tnormal, uv, color);
     index_t result = (index_t)vertices_.size();
     vertices_.push_back(vtx);
     return result;
@@ -399,9 +399,9 @@ public:
     return *this;
   }
 
-  const basic_mesh &reset() {
-    vertices_.reset();
-    indices_.reset();
+  const basic_mesh &clear() {
+    vertices_.clear();
+    indices_.clear();
     return *this;
   }
 

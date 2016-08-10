@@ -18,10 +18,29 @@ public:
   box(glm::vec3 half_extent = glm::vec3(1)) : half_extent_(half_extent) {
   }
 
+  // call this function to make a mesh
+  // This works with the meshutils mesh, but is still generic.
   template <class Mesh>
-  size_t build(Mesh &mesh, const glm::mat4 &transform = glm::mat4()) {
-    size_t result = mesh.indices().size();
+  size_t build(Mesh &mesh, const glm::mat4 &transform = glm::mat4(), const glm::vec4 &color=glm::vec4(1)) {
+    auto vertex = [&mesh, &transform, &color](const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv) {
+      mesh.addVertexTransformed(transform, pos, normal, uv, color);
+    };
 
+    auto index = [&mesh](size_t idx) {
+      mesh.addIndex(idx);
+    };
+
+    size_t first_index = mesh.indices().size();
+
+    buildMesh(vertex, index, first_index);
+    
+    // return the first index of the mesh
+    return first_index;
+  }
+
+  // call this function to generate vertices and indices.
+  template <class Vertex, class Index>
+  void buildMesh(Vertex vertex, Index index, size_t first_index=0) {
     //   6     7
     // 2 4  3  5
     // 0    1 
@@ -71,20 +90,17 @@ public:
         size_t idx = cube[face*4+v];
         glm::vec3 pos = glm::vec3(cpos[idx][0], cpos[idx][1], cpos[idx][2]);
         glm::vec2 uv = glm::vec2(cuv[v][0], cuv[v][1]);
-        mesh.addVertexTransformed(transform, pos * half_extent_, normal, uv);
+        vertex(pos * half_extent_, normal, uv);
       }
 
       // two triangles per face.
-      mesh.addIndex(result + face*4 + 0);
-      mesh.addIndex(result + face*4 + 2);
-      mesh.addIndex(result + face*4 + 1);
-      mesh.addIndex(result + face*4 + 1);
-      mesh.addIndex(result + face*4 + 2);
-      mesh.addIndex(result + face*4 + 3);
+      index(first_index + face*4 + 0);
+      index(first_index + face*4 + 2);
+      index(first_index + face*4 + 1);
+      index(first_index + face*4 + 1);
+      index(first_index + face*4 + 2);
+      index(first_index + face*4 + 3);
     }
-
-    // result has 36 indices and 24 vertices
-    return result;
   }
 private:
   glm::vec3 half_extent_;
