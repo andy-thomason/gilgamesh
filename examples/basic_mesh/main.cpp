@@ -1,8 +1,8 @@
 
 #include <meshutils/mesh.hpp>
-#include <meshutils/box.hpp>
-#include <meshutils/sphere.hpp>
-#include <meshutils/cylinder.hpp>
+#include <meshutils/shapes/box.hpp>
+#include <meshutils/shapes/sphere.hpp>
+#include <meshutils/shapes/cylinder.hpp>
 #include <meshutils/encoders/fbx_encoder.hpp>
 #include <meshutils/decoders/fbx_decoder.hpp>
 #include <fstream>
@@ -40,7 +40,6 @@ int main() {
   printf("writing cylinder.fbx\n");
   encoder.saveMesh(mesh, "cylinder.fbx");
 
-
   mesh.clear();
 
   printf("building a composite object\n");
@@ -53,8 +52,4 @@ int main() {
 
   printf("writing composite.fbx\n");
   encoder.saveMesh(mesh, "composite.fbx");
-
-  /*auto os = std::ofstream("composite.txt");
-  mesh.writeCSV(os);
-  decoder.dump(os, "composite.fbx");*/
 }
