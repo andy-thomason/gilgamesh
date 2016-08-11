@@ -38,7 +38,7 @@ public:
       mesh.addIndex(idx);
     };
 
-    size_t first_index = mesh.indices().size();
+    size_t first_index = mesh.vertices().size();
 
     buildMesh(vertex, index, first_index, num_y_segments, num_radial_segments, features);
     
@@ -112,11 +112,11 @@ public:
           size_t idx0 = first_index + iy * (num_radial_segments+1);
           size_t idx1 = idx0 + (num_radial_segments+1);
           index(idx0 + r);
-          index(idx0 + r + 1);
           index(idx1 + r);
           index(idx0 + r + 1);
+          index(idx0 + r + 1);
+          index(idx1 + r);
           index(idx1 + r + 1);
-          index(idx1 + r);
         }
       }
     }

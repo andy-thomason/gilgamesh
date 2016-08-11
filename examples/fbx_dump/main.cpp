@@ -6,10 +6,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <meshutils/mesh.hpp>
-#include <meshutils/scene.hpp>
 #include <meshutils/decoders/fbx_decoder.hpp>
-#include <meshutils/encoders/fbx_encoder.hpp>
 
 int main(int argc, char **argv) {
   const char *filename = nullptr;
@@ -26,17 +23,8 @@ int main(int argc, char **argv) {
     filename = CMAKE_SOURCE "/examples/data/cube.fbx";
   }
 
-  meshutils::fbx_decoder decoder;
-
-  meshutils::scene scene;
-  if (!decoder.loadScene<meshutils::color_mesh>(scene, filename)) {
-    std::cerr << "uable to open file " << filename << "\n";
-    return 1;
-  }
-
-  meshutils::fbx_encoder encoder;
-  auto bytes = encoder.saveScene(scene);
-
-  std::ofstream("out.fbx", std::ios::binary).write((char*)bytes.data(), bytes.size());
+  meshutils::fbx_decoder fbx;
+  
+  fbx.dump(std::cout, filename);
 }
 

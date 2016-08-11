@@ -7,8 +7,8 @@
 // Interpret an array of bytes as an FBX binary file
 // 
 
-#ifndef VKU_fbx_decoder_INCLUDED
-#define VKU_fbx_decoder_INCLUDED
+#ifndef VKU_FBX_DECODER_INCLUDED
+#define VKU_FBX_DECODER_INCLUDED
 
 #include <iostream>
 #include <fstream>
@@ -28,6 +28,41 @@ namespace meshutils {
 
   class fbx_decoder {
     enum { debug = 1 };
+
+  public:
+    fbx_decoder() {
+    }
+
+    // Load a scene from a file
+    // note that this is not thread safe!
+    template<class MeshType>
+    bool loadScene(meshutils::scene &scene, const std::string &filename) {
+      std::vector<char> bytes;
+      init(bytes, filename);
+      return load<MeshType>(scene);
+    }
+
+    // Load a scene from memory
+    // note that this is not thread safe!
+    template<class MeshType>
+    bool loadScene(meshutils::scene &scene, const char *begin, const char *end) {
+      init(begin, end);
+      return load<MeshType>(scene);
+    }
+
+    // dump the structure of a file.
+    void dump(std::ostream &os, const std::string &filename) {
+      std::vector<char> bytes;
+      init(bytes, filename);
+      if (!fail()) {
+        std::vector<char> tmp(65536);
+        for (auto p : *this) {
+          dump(os, p, 0, tmp.data(), tmp.size());
+        }
+      }
+    }
+
+  private:
 
     static inline std::uint8_t u1(const char *p) {
       const unsigned char *q = (const unsigned char *)p;
@@ -236,60 +271,9 @@ namespace meshutils {
       size_t offset;
       const char *begin_;
     };
-  public:
-    /*fbx_decoder(const std::string &filename) {
-      std::ifstream f(filename, std::ios_base::binary);
-      if (f.good()) {
-        f.seekg(0, std::ios_base::end);
-        bytes.resize((size_t)f.tellg());
-        f.seekg(0, std::ios_base::beg);
-        f.read((char*)bytes.data(), bytes.size());
-        init((char*)bytes.data(), (char*)bytes.data() + f.gcount());
-      }
-    }*/
-
-    fbx_decoder(const char *begin, const char *end) { init(begin, end); }
-
-    node begin() const { return node(begin_, 27); }
-    node end() const { return node(begin_, end_offset); }
-
-    enum class Mapping {
-      Invalid,
-      ByPolygon,
-      ByPolygonVertex,
-      ByVertex,
-      ByEdge,
-      AllSame,
-    };
-
-    enum class Ref {
-      Invalid,
-      Direct,
-      IndexToDirect,
-    };
-
-    static Mapping decodeMapping(const std::string &name) {
-      Mapping result = Mapping::Invalid;
-      if (name == "ByPolygon") result = Mapping::ByPolygon;
-      else if (name == "ByPolygon") result = Mapping::ByPolygon;
-      else if (name == "ByPolygonVertex") result = Mapping::ByPolygonVertex;
-      else if (name == "ByVertex") result = Mapping::ByVertex;
-      else if (name == "ByVertice") result = Mapping::ByVertex;
-      else if (name == "ByEdge") result = Mapping::ByEdge;
-      else if (name == "AllSame") result = Mapping::AllSame;
-      return result;
-    };
-
-    static Ref decodeRef(const std::string &name) {
-      Ref result = Ref::Invalid;
-      if (name == "Direct") result = Ref::Direct;
-      else if (name == "IndexToDirect") result = Ref::IndexToDirect;
-      else if (name == "Index") result = Ref::IndexToDirect;
-      return result;
-    };
 
     template<class MeshType>
-    bool loadScene(meshutils::scene &scene) {
+    bool load(meshutils::scene &scene) {
       std::vector<double> fbxVertices;
       std::vector<double> fbxNormals;
       std::vector<double> fbxUVs;
@@ -524,7 +508,60 @@ namespace meshutils {
       return true;
     }
 
-  private:
+    void init(std::vector<char> &bytes, const std::string &filename) {
+      std::ifstream file(filename, std::ios_base::binary);
+      begin_ = end_ = nullptr;
+      if (file.eof() || file.fail()) {
+        return;
+      }
+
+      file.seekg(0, std::ios_base::end);
+      bytes.resize((size_t)file.tellg());
+
+      file.seekg(0, std::ios_base::beg);
+      file.read(bytes.data(), bytes.size());
+      init(bytes.data(), bytes.data() + bytes.size());
+    }
+
+    node begin() const { return node(begin_, 27); }
+    node end() const { return node(begin_, end_offset); }
+
+    bool fail() const { return begin_ == nullptr || end_ - begin_ < 27; }
+
+    enum class Mapping {
+      Invalid,
+      ByPolygon,
+      ByPolygonVertex,
+      ByVertex,
+      ByEdge,
+      AllSame,
+    };
+
+    enum class Ref {
+      Invalid,
+      Direct,
+      IndexToDirect,
+    };
+
+    static Mapping decodeMapping(const std::string &name) {
+      Mapping result = Mapping::Invalid;
+      if (name == "ByPolygon") result = Mapping::ByPolygon;
+      else if (name == "ByPolygon") result = Mapping::ByPolygon;
+      else if (name == "ByPolygonVertex") result = Mapping::ByPolygonVertex;
+      else if (name == "ByVertex") result = Mapping::ByVertex;
+      else if (name == "ByVertice") result = Mapping::ByVertex;
+      else if (name == "ByEdge") result = Mapping::ByEdge;
+      else if (name == "AllSame") result = Mapping::AllSame;
+      return result;
+    };
+
+    static Ref decodeRef(const std::string &name) {
+      Ref result = Ref::Invalid;
+      if (name == "Direct") result = Ref::Direct;
+      else if (name == "IndexToDirect") result = Ref::IndexToDirect;
+      else if (name == "Index") result = Ref::IndexToDirect;
+      return result;
+    };
 
     static size_t map(fbx_decoder::Mapping m, size_t polygon_index, size_t pvi, size_t vi) {
       switch (m) {
@@ -612,13 +649,13 @@ namespace meshutils {
     const char *end_;
   };
 
-  inline std::ostream &operator<<(std::ostream &os, const fbx_decoder &fbx) {
+  /*inline std::ostream &operator<<(std::ostream &os, const fbx_decoder &fbx) {
     std::vector<char> tmp(65536);
     for (auto p : fbx) {
       fbx.dump(os, p, 0, tmp.data(), tmp.size());
     }
     return os;
-  }
+  }*/
 
 }
 

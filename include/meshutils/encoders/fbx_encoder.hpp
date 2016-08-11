@@ -1358,7 +1358,7 @@ namespace meshutils {
         end("Vertices");
         begin("PolygonVertexIndex");
           std::vector<uint32_t> pvi;
-          for (size_t i = 0; i < indices.size(); i += 3) {
+          for (size_t i = 0; i + 2 < indices.size(); i += 3) {
             pvi.push_back(ipos[indices[i+0]]);
             pvi.push_back(ipos[indices[i+1]]);
             pvi.push_back(~ipos[indices[i+2]]);

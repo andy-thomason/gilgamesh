@@ -30,7 +30,7 @@ public:
       mesh.addIndex(idx);
     };
 
-    size_t first_index = mesh.indices().size();
+    size_t first_index = mesh.vertices().size();
 
     buildMesh(vertex, index, first_index, num_lattitude);
     
@@ -62,7 +62,7 @@ public:
 
     // generate indices
     float pphi = 0;
-    int pn = 1;
+    int pn = 6;
     for (int i = 1; i <= num_lattitude; ++i) {
       float phi = i * (3.141592653589793f / num_lattitude);
       float sinphi = std::sin(phi);
@@ -71,12 +71,12 @@ public:
       for (int j = 0, pj = 0; j <= n && pj <= pn;) {
         index(idx + j);
         if (j * pn < pj * n) { // equivalent to j / n < pj / pn
-          index(idx + j + 1);
           index(pidx + pj);
+          index(idx + j + 1);
           ++j;
         } else {
-          index(pidx + pj + 1);
           index(pidx + pj);
+          index(pidx + pj + 1);
           ++pj;
         }
       }
