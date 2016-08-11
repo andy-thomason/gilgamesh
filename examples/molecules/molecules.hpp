@@ -21,42 +21,7 @@
 #include <future>
 #include <numeric>
 
-
-#undef min
-
-inline std::ostream & operator<<(std::ostream &os, const glm::vec3 &v) {
-  return os << "vec3(" << v.x << ", " << v.y << ", " << v.z << ")";
-}
-
-template <class... P>
-const char *fmt(const char *str, P... params) {
-  static char buf[256];
-  snprintf(buf, sizeof(buf), str, params...);
-  return buf;
-}
-
-template <class F>
-void par_for(int begin, int end, F fn) {
-  std::atomic<int> idx;
-  idx = begin;
-  int num_cpus = std::thread::hardware_concurrency();
-  std::vector<std::future<void>> futures(num_cpus);
-  for (int cpu = 0; cpu != num_cpus; ++cpu) {
-    futures[cpu] = std::async(std::launch::async, [cpu, &idx, end, &fn]() {
-      for (;;) {
-        int i = idx++;
-        printf("[%d %d]", i, cpu);
-        fflush(stdout);
-        if (i >= end) break;
-        fn(i);
-      }
-    });
-  }
-  for (int cpu = 0; cpu != num_cpus; ++cpu) {
-    futures[cpu].get();
-  }
-  printf("\n");
-}
+#include "utils.hpp"
 
 class molecules {
 public:
@@ -67,6 +32,7 @@ public:
     bool error = false;
     bool list_chains = false;
     const char *chains = "A-Z";
+    const char *cmd = "";
 
     for (int i = 1; i != argc; ++i) {
       const char *arg = argv[i];
@@ -83,6 +49,8 @@ public:
       } else if (arg[0] == '-') {
         printf("invalid argument %s\n", arg);
         error = true;
+      } else if (!strcmp(arg, "se")) {
+        cmd = arg;
       } else {
         if (pdb_filename) { printf("only one file will be considered\n"); error = true; }
         pdb_filename = arg;
@@ -93,8 +61,9 @@ public:
 
     if (pdb_filename == nullptr || error) {
       printf(
-        "usage: molecule <options> <pdb file name>\n\n"
-        "This example generates solvent exclude meshes for a PDB file.\n"
+        "usage:\n"
+        "molecules se <options> <pdb file name> ... generate a solvent excluded mesh\n\n"
+        "molecules bs <options> <pdb file name> ... generate a ball and stick mesh\n\n"
         "You can specify which chains to use with the --chains option.\n"
         "\noptions:\n"
         "--grid-spacing <n>\tgrid spacing (default 0.25) smaller gives more vertices\n"
@@ -151,6 +120,46 @@ public:
       }
     }
 
+    meshutils::color_mesh mesh;
+
+    if (!strcmp(cmd, "se")) {
+      generate_solvent_excluded_mesh(mesh, pos, radii, colors, grid_spacing);
+    }
+
+    if (!strcmp(cmd, "bs")) {
+      generate_ball_and_stick_mesh(mesh, pos, radii, colors);
+    }
+
+    const char *last_slash = pdb_filename;
+    const char *last_dot = pdb_filename + strlen(pdb_filename);
+    for (const char *p = pdb_filename; *p; ++p) {
+      if (*p == '/' || *p == '\\') last_slash = p + 1;
+    }
+    for (const char *p = last_slash; *p; ++p) {
+      if (*p == '.') last_dot = p;
+    }
+
+    // build normals
+    mesh.reindex(true);
+
+    //auto str = std::ofstream("1.txt");
+    //emesh.writeCSV(str);
+
+    std::string stem;
+    stem.assign(last_slash, last_dot);
+
+    const char *out_filename = fmt("%s_%s_%s.fbx", stem.c_str(), chains, grid_spacing_text);
+    printf("writing %s\n", out_filename);
+    std::ofstream eof(out_filename, std::ios::binary);
+    std::vector<uint8_t> bytes = encoder.saveMesh(mesh);
+    eof.write((char*)bytes.data(), bytes.size());
+  }
+
+private:
+  void generate_ball_and_stick_mesh(meshutils::mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors) {
+  }
+
+  void generate_solvent_excluded_mesh(meshutils::mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, float grid_spacing) {
     struct colored_atom {
       glm::vec4 color;
       glm::vec3 pos;
@@ -310,35 +319,6 @@ public:
       return meshutils::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 
-    meshutils::color_mesh emesh(xdim, ydim, zdim, efn, egen);
-
-    const char *last_slash = pdb_filename;
-    const char *last_dot = pdb_filename + strlen(pdb_filename);
-    for (const char *p = pdb_filename; *p; ++p) {
-      if (*p == '/' || *p == '\\') last_slash = p + 1;
-    }
-    for (const char *p = last_slash; *p; ++p) {
-      if (*p == '.') last_dot = p;
-    }
-
-    // build normals
-    emesh.reindex(true);
-
-    //auto str = std::ofstream("1.txt");
-    //emesh.writeCSV(str);
-
-    std::string stem;
-    stem.assign(last_slash, last_dot);
-
-    const char *out_filename = fmt("%s_%s_%s.fbx", stem.c_str(), chains, grid_spacing_text);
-    printf("writing %s\n", out_filename);
-    std::ofstream eof(out_filename, std::ios::binary);
-    std::vector<uint8_t> bytes = encoder.saveMesh(emesh);
-    eof.write((char*)bytes.data(), bytes.size());
+    mesh = meshutils::color_mesh(xdim, ydim, zdim, efn, egen);
   }
-private:
 };
-
-int main(int argc, char **argv) {
-  molecules m(argc, argv);
-}
