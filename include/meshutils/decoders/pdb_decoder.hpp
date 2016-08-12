@@ -20,6 +20,7 @@
 
 
 // https://en.wikipedia.org/wiki/Protein_Data_Bank_(file_format)
+// https://www.cgl.ucsf.edu/chimera/docs/UsersGuide/tutorials/framepdbintro.html
 namespace meshutils {
   class pdb_decoder {
   public:
@@ -76,7 +77,28 @@ namespace meshutils {
             } break;
             case 'H': {
               if (p + 5 < eol && !memcmp(p, "HETATM", 6)) {
-                hetatoms_.emplace_back(p, eol);
+                hetAtoms_.emplace_back(p, eol);
+              }
+            } break;
+            case 'C': {
+              if (p + 5 < eol && !memcmp(p, "CONECT", 6)) {
+                // COLUMNS       DATA  TYPE      FIELD        DEFINITION
+                // -------------------------------------------------------------------------
+                //  1 -  6        Record name    "CONECT"
+                //  7 - 11       Integer        serial       Atom  serial number
+                //  12 - 16        Integer        serial       Serial number of bonded atom
+                //  17 - 21        Integer        serial       Serial  number of bonded atom
+                //  22 - 26        Integer        serial       Serial number of bonded atom
+                //  27 - 31        Integer        serial       Serial number of bonded atom
+                int a0 = atoi(p + 1 + 7, p + 11);
+                int a1 = atoi(p + 1 + 12, p + 16);
+                int a2 = atoi(p + 1 + 17, p + 21);
+                int a3 = atoi(p + 1 + 22, p + 26);
+                int a4 = atoi(p + 1 + 27, p + 31);
+                if (a0 && a1) connections_.emplace_back(a0, a1);
+                if (a0 && a2) connections_.emplace_back(a0, a2);
+                if (a0 && a3) connections_.emplace_back(a0, a3);
+                if (a0 && a4) connections_.emplace_back(a0, a4);
               }
             } break;
           }
@@ -86,19 +108,22 @@ namespace meshutils {
     }
 
     const std::vector<atom> &atoms() const { return atoms_; }
+    const std::vector<atom> &hetAtoms() const { return hetAtoms_; }
 
+    // return the set of chains used in this PDB file (ie. "ABCD")
     std::string chains() const {
       bool used[256] = {};
       for (auto &p : atoms_) {
         used[p.chainID()] = true;
       }
       std::string result;
-      for (size_t i = 0; i != 128; ++i) {
+      for (size_t i = 32; i != 127; ++i) {
         if (used[i]) result.push_back((char)i);
       }
       return std::move(result);
     }
 
+    // return a vector of positions filtered by chain id
     std::vector<glm::vec3> pos(char chainID = '?') const {
       std::vector<glm::vec3> result;
       for (auto &p : atoms_) {
@@ -120,6 +145,7 @@ namespace meshutils {
       return std::move(result);
     }
 
+    // Return colours for terminal atoms of amino acids.
     std::vector<glm::vec4> colorsByFunction(char chainID = '?') const {
       std::vector<glm::vec4> result;
       for (auto &p : atoms_) {
@@ -151,9 +177,202 @@ namespace meshutils {
       }
       return std::move(result);
     }
+
+    // return implicit connections between atoms
+    std::vector<std::pair<int, int> > implicitConnections(char chainID = '?') const {
+      std::vector<std::pair<int, int> > result;
+
+      // see http://www.bmrb.wisc.edu/referenc/commonaa.php?asp
+      int prevC = -1;
+      int idx = 0;
+      for (auto &p : atoms_) {
+        if (chainID == '?' || p.chainID() == chainID) {
+          std::string atom = p.atomName();
+          if (atom == " N  ") {
+            // backbone
+            int N = idx, CA = idx+1, C = idx+2, O = idx+3, CB = idx + 4;
+            if (prevC != -1) result.emplace_back(prevC, N);
+            result.emplace_back(N, CA);
+            result.emplace_back(CA, C);
+            result.emplace_back(CA, O);
+
+            std::string resName = p.resName();
+            // CB
+            if (resName != "GLY") {
+              result.emplace_back(CA, CB);
+            }
+
+            //I can't guarantee these are correct right now.
+            if (resName == "ASP") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int OD1 = CG + 1;
+              int OD2 = CG + 2;
+              result.emplace_back(CG, OD1);
+              result.emplace_back(CG, OD2);
+            //} else if (resName == "ALA") {
+            } else if (resName == "CYS") {
+              int SG = idx + 4;
+              result.emplace_back(CB, SG);
+            } else if (resName == "GLU") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int CD = CG + 1;
+              result.emplace_back(CG, CD);
+              int OE1 = CD + 1;
+              int OE2 = CD + 2;
+              result.emplace_back(CD, OE1);
+              result.emplace_back(CD, OE2);
+            } else if (resName == "PHE") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int CD1 = CG + 1;
+              int CD2 = CG + 2;
+              result.emplace_back(CG, CD1);
+              result.emplace_back(CG, CD2);
+              int CE1 = CG + 3;
+              int CE2 = CG + 4;
+              result.emplace_back(CD1, CE1);
+              result.emplace_back(CD2, CE2);
+              int CZ = CG + 5;
+              result.emplace_back(CE1, CZ);
+              result.emplace_back(CE2, CZ);
+            //} else if (resName == "GLY") {
+            } else if (resName == "HIS") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int ND1 = CG + 1;
+              int CD2 = CG + 2;
+              result.emplace_back(CG, ND1);
+              result.emplace_back(CG, CD2);
+              int CE1 = CG + 3;
+              int NE2 = CG + 4;
+              result.emplace_back(ND1, CE1);
+              result.emplace_back(CD2, NE2);
+              result.emplace_back(CE1, NE2);
+            } else if (resName == "ILE") {
+              int CG1 = CB + 1;
+              int CG2 = CB + 2;
+              result.emplace_back(CB, CG1);
+              result.emplace_back(CB, CG2);
+              result.emplace_back(CG1, CG2);
+            } else if (resName == "LYS") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int CD = CG + 1;
+              result.emplace_back(CG, CD);
+              int CE = CD + 1;
+              result.emplace_back(CD, CE);
+              int NZ = CE + 1;
+              result.emplace_back(CE, NZ);
+            } else if (resName == "LEU") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int CD1 = CG + 1;
+              int CD2 = CG + 2;
+              result.emplace_back(CG, CD1);
+              result.emplace_back(CG, CD2);
+            } else if (resName == "MET") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int SD = CG + 1;
+              result.emplace_back(CG, SD);
+              int CE = SD + 1;
+              result.emplace_back(SD, CE);
+            } else if (resName == "ASN") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int OD1 = CG + 1;
+              int ND2 = CG + 2;
+              result.emplace_back(CG, OD1);
+              result.emplace_back(CG, ND2);
+            } else if (resName == "PRO") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int CD = CG + 1;
+              result.emplace_back(CG, CD);
+            } else if (resName == "GLN") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int CD = CG + 1;
+              result.emplace_back(CG, CD);
+              int OE1 = CD + 1;
+              int NE2 = CD + 2;
+              result.emplace_back(CD, OE1);
+              result.emplace_back(CD, NE2);
+            } else if (resName == "ARG") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int CD = CG + 1;
+              result.emplace_back(CG, CD);
+              int NE = CD + 1;
+              result.emplace_back(CD, NE);
+              int CZ = NE + 1;
+              result.emplace_back(NE, CZ);
+              int NH1 = CZ + 1;
+              int NH2 = CZ + 2;
+              result.emplace_back(CZ, NH1);
+              result.emplace_back(CZ, NH2);
+            } else if (resName == "SER") {
+              int OG = CB + 1;
+              result.emplace_back(CB, OG);
+            } else if (resName == "THR") {
+              int OG1 = CB + 1;
+              int CG2 = CB + 2;
+              result.emplace_back(CB, OG1);
+              result.emplace_back(CB, CG2);
+            } else if (resName == "VAL") {
+              int CG1 = CB + 1;
+              int CG2 = CB + 2;
+              result.emplace_back(CB, CG1);
+              result.emplace_back(CB, CG2);
+            } else if (resName == "TRP") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int CD1 = CG + 1;
+              int CD2 = CG + 2;
+              result.emplace_back(CG, CD1);
+              result.emplace_back(CG, CD2);
+              int NE1 = CG + 3;
+              int CE2 = CG + 4;
+              int CE3 = CG + 5;
+              result.emplace_back(CD1, NE1);
+              result.emplace_back(CD2, CE3);
+              result.emplace_back(NE1, CE2);
+              int CZ2 = CG + 5;
+              int CZ3 = CG + 6;
+              result.emplace_back(CE2, CZ2);
+              result.emplace_back(CE3, CZ3);
+              int CH2 = CG + 7;
+              result.emplace_back(CZ2, CH2);
+              result.emplace_back(CZ3, CH2);
+            } else if (resName == "TYR") {
+              int CG = CB + 1;
+              result.emplace_back(CB, CG);
+              int CD1 = CG + 1;
+              int CD2 = CG + 2;
+              result.emplace_back(CG, CD1);
+              result.emplace_back(CG, CD2);
+              int CE1 = CG + 3;
+              int CE2 = CG + 4;
+              result.emplace_back(CD1, CE1);
+              result.emplace_back(CD2, CE2);
+              int CZ = CG + 5;
+              result.emplace_back(CE1, CZ);
+              result.emplace_back(CE2, CZ);
+              int OH = CZ + 1;
+              result.emplace_back(CZ, OH);
+            }
+
+          }
+        }
+      }
+      return result;
+    }
   private:
     std::vector<atom> atoms_;
-    std::vector<atom> hetatoms_;
+    std::vector<atom> hetAtoms_;
+    std::vector<std::pair<int, int> > connections_;
 
     static int atoi(const uint8_t *b, const uint8_t *e) {
       while (b != e && *b == ' ') ++b;
