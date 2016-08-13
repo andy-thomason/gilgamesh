@@ -56,6 +56,18 @@ public:
   basic_mesh() {
   }
 
+  basic_mesh(basic_mesh && rhs) {
+    vertices_ = std::move(rhs.vertices_);
+    indices_ = std::move(rhs.indices_);
+  }
+
+  basic_mesh &operator=(basic_mesh && rhs) {
+    printf("!!!\n");
+    vertices_ = std::move(rhs.vertices_);
+    indices_ = std::move(rhs.indices_);
+    return *this;
+  }
+
   // mesh virtual methods
   // bulk read operations
   std::vector<glm::vec3> pos() const override {
@@ -107,12 +119,6 @@ public:
   std::vector<index_t> &indices() { return indices_; }
   const std::vector<index_t> &indices() const { return indices_; }
   size_t indexSize() const { return sizeof(index_t); }
-
-  basic_mesh &operator=(basic_mesh &&rhs) {
-    vertices_ = std::move(rhs.vertices_);
-    indices_ = std::move(rhs.indices_);
-    return *this;
-  }
 
   index_t addVertex(const vertex_t &vtx) {
     index_t result = (index_t)vertices_.size();

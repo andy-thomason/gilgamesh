@@ -10,8 +10,11 @@
 #include <meshutils/mesh.hpp>
 #include <meshutils/decoders/pdb_decoder.hpp>
 #include <meshutils/encoders/fbx_encoder.hpp>
+#include <meshutils/shapes/sphere.hpp>
+#include <meshutils/shapes/cylinder.hpp>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include <ostream>
 #include <fstream>
@@ -28,7 +31,7 @@ public:
   molecules(int argc, char **argv) {
     const char *pdb_filename = nullptr;
     const char *output_path = "";
-    const char *grid_spacing_text = "0.25";
+    const char *grid_spacing_text = "1.0";
     bool error = false;
     bool list_chains = false;
     const char *chains = "A-Z";
@@ -51,6 +54,8 @@ public:
         error = true;
       } else if (!strcmp(arg, "se")) {
         cmd = arg;
+      } else if (!strcmp(arg, "bs")) {
+        cmd = arg;
       } else {
         if (pdb_filename) { printf("only one file will be considered\n"); error = true; }
         pdb_filename = arg;
@@ -71,7 +76,8 @@ public:
         "--list-chains <n>\tjust list the chains in the PDB file\n"
         "--output-path <dir>\tdirectory to output files to\n"
         "--help <n>\tshow this text\n"
-      ); return; }
+      ); return;
+    }
 
     const char *filename = "out";
 
@@ -96,27 +102,47 @@ public:
       return;
     }
 
-    std::vector<glm::vec3> pos;
-    std::vector<float> radii;
-    std::vector<glm::vec4> colors;
-
-    auto addChain = [&](char chainID) {
-      std::vector<glm::vec3> xpos = pdb.pos(chainID);
-      std::vector<float> xradii = pdb.radii(chainID);
-      std::vector<glm::vec4> xcolors = pdb.colorsByFunction(chainID);
-      pos.insert(pos.end(), xpos.begin(), xpos.end());
-      radii.insert(radii.end(), xradii.begin(), xradii.end());
-      colors.insert(colors.end(), xcolors.begin(), xcolors.end());
-    };
-
+    std::string expanded_chains;
     for (const char *p = chains; *p; ++p) {
       if (p[1] == '-' && p[2] && p[2] >= p[1]) {
-        for (char i = p[1]; i <= p[2]; ++i) {
-          addChain(i);
+        for (char i = p[0]; i <= p[2]; ++i) {
+          if (pdb_chains.find(i) != std::string::npos) {
+            expanded_chains.push_back(i);
+          }
         }
         p += 2;
       } else {
-        addChain(*p);
+        expanded_chains.push_back(*p);
+      }
+    }
+
+    printf("chains %s\n", expanded_chains.c_str());
+
+    std::vector<glm::vec3> pos;
+    std::vector<float> radii;
+    std::vector<glm::vec4> colors;
+    std::vector<std::pair<int, int> > connections;
+
+    auto atoms = pdb.atoms();
+    int prevC = -1;
+    for (int idx = 0; idx != atoms.size(); ++idx) {
+      auto &p = atoms[idx];
+      char chainID = p.chainID();
+      if (expanded_chains.find(chainID) != std::string::npos) {
+        pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+        radii.push_back(p.vanDerVaalsRadius());
+        if (cmd[0] == 'b') {
+          colors.push_back(p.colorByElement());
+          if (p.atomNameIs(" N  ")) {
+            p.addImplicitConnections(connections, idx);
+            if (prevC != -1) {
+              connections.emplace_back(prevC, idx);
+              prevC = idx + 2;
+            }
+          }
+        } else {
+          colors.push_back(p.colorByFunction());
+        }
       }
     }
 
@@ -127,7 +153,7 @@ public:
     }
 
     if (!strcmp(cmd, "bs")) {
-      generate_ball_and_stick_mesh(mesh, pos, radii, colors);
+      generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections);
     }
 
     const char *last_slash = pdb_filename;
@@ -142,24 +168,39 @@ public:
     // build normals
     mesh.reindex(true);
 
-    //auto str = std::ofstream("1.txt");
-    //emesh.writeCSV(str);
-
     std::string stem;
     stem.assign(last_slash, last_dot);
 
-    const char *out_filename = fmt("%s_%s_%s.fbx", stem.c_str(), chains, grid_spacing_text);
-    printf("writing %s\n", out_filename);
+    const char *out_filename = fmt("%s_%s_%s_%s.fbx", stem.c_str(), expanded_chains.c_str(), cmd, grid_spacing_text);
+    printf("writing %s (%d vertices)\n", out_filename, int(mesh.vertices().size()));
     std::ofstream eof(out_filename, std::ios::binary);
     std::vector<uint8_t> bytes = encoder.saveMesh(mesh);
     eof.write((char*)bytes.data(), bytes.size());
   }
 
 private:
-  void generate_ball_and_stick_mesh(meshutils::mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors) {
+  void generate_ball_and_stick_mesh(meshutils::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, std::vector<std::pair<int, int> > &connections) {
+    glm::mat4 mat;
+    for (size_t i = 0; i != pos.size(); ++i) {
+      mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
+      meshutils::sphere s(radii[i] * 0.25);
+      s.build(mesh, mat, colors[i], 5);
+    }
+    for (auto &c : connections) {
+      glm::vec3 pos0 = pos[c.first];
+      glm::vec3 pos1 = pos[c.second];
+      glm::vec4 c0 = colors[c.first];
+      glm::vec4 c1 = colors[c.second];
+      glm::vec3 up = glm::vec3(0, 1, 0);
+      glm::vec3 mid = (pos0 + pos1) * 0.5f;
+      glm::mat4 mat = glm::lookAt(mid, pos1, up);
+      float len = glm::length(pos1 - pos0);
+      meshutils::cylinder cyl(0.25f, len);
+      cyl.build(mesh, mat, colors[c.first], meshutils::cylinder::body);
+    }
   }
 
-  void generate_solvent_excluded_mesh(meshutils::mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, float grid_spacing) {
+  void generate_solvent_excluded_mesh(meshutils::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, float grid_spacing) {
     struct colored_atom {
       glm::vec4 color;
       glm::vec3 pos;
@@ -204,6 +245,8 @@ private:
     };
 
     printf("building solvent acessible mesh by inflating the atoms\n");
+
+    // build a distance field for all the atoms.
     std::vector<float> accessible((xdim+1)*(ydim+1)*(zdim+1));
     par_for(0, zdim+1, [&](int z) {
       float zpos = z * grid_spacing + min.z;
@@ -233,6 +276,7 @@ private:
       return meshutils::pos_mesh::vertex_t(xyz);
     };
 
+    // construct the accessible mesh using marching cubes
     meshutils::pos_mesh amesh(xdim, ydim, zdim, fn, gen);
 
     std::vector<glm::vec3> zsorter;
@@ -319,6 +363,12 @@ private:
       return meshutils::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 
-    mesh = meshutils::color_mesh(xdim, ydim, zdim, efn, egen);
+    // construct the excluded mesh using marching cubes
+    meshutils::color_mesh emesh(xdim, ydim, zdim, efn, egen);
+
+    // use move operator to shallow copy the mesh.
+    mesh = std::move(emesh);
   }
 };
+
+
