@@ -183,7 +183,7 @@ private:
     glm::mat4 mat;
     for (size_t i = 0; i != pos.size(); ++i) {
       mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
-      meshutils::sphere s(radii[i] * 0.25);
+      meshutils::sphere s(radii[i] * 0.25f);
       s.build(mesh, mat, colors[i], 5);
     }
     for (auto &c : connections) {
