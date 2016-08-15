@@ -125,6 +125,7 @@ public:
 
     auto atoms = pdb.atoms();
     int prevC = -1;
+    char prevChainID = '?';
     for (int idx = 0; idx != atoms.size(); ++idx) {
       auto &p = atoms[idx];
       char chainID = p.chainID();
@@ -135,10 +136,11 @@ public:
           colors.push_back(p.colorByElement());
           if (p.atomNameIs(" N  ")) {
             p.addImplicitConnections(connections, idx);
-            if (prevC != -1) {
+            if (prevC != -1 && prevChainID == chainID) {
               connections.emplace_back(prevC, idx);
-              prevC = idx + 2;
             }
+            prevC = idx + 2;
+            prevChainID = chainID;
           }
         } else {
           colors.push_back(p.colorByFunction());
@@ -199,8 +201,8 @@ private:
       mat[0] = glm::vec4(x, 0);
       mat[1] = glm::vec4(y, 0);
       mat[2] = glm::vec4(z, 0);
+      printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
       if (c0 == c1) {
-        printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
         gilgamesh::cylinder cyl(0.15f, len);
         mat[3] = glm::vec4((pos0 + pos1) * 0.5f, 1);
         cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
