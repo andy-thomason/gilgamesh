@@ -99,6 +99,7 @@ namespace meshutils {
         result.emplace_back(N, CA);
         result.emplace_back(CA, C);
         result.emplace_back(CA, O);
+        return;
 
         if (!resNameIs("GLY")) {
           result.emplace_back(CA, CB);
@@ -276,10 +277,10 @@ namespace meshutils {
           " H", 0xffffff, " C", 0x222222, " N", 0x2233ff, " O", 0xff2200, " S", 0xdddd00,
         };
         static const data_t jmol[] = {
-          " H", 0xffffff, "C ", 0X909090, "N ", 0X3050F8, "O ", 0XFF0D0D, "F ", 0X90E050,
-          "NA", 0XAB5CF2, "MG", 0X8AFF00, "AL", 0XBFA6A6, "SI", 0XF0C8A0,
-          "P ", 0XFF8000, "S ", 0XFFFF30, "CL", 0X1FF01F, "AR", 0X80D1E3,
-          "K ", 0X8F40D4, "CA", 0X3DFF00,
+          " H", 0xffffff, " C", 0x909090, " N", 0x3050F8, " O", 0xFF0D0D, " F", 0x90E050,
+          "NA", 0xAB5CF2, "MG", 0x8AFF00, "AL", 0xBFA6A6, "SI", 0xF0C8A0,
+          " P", 0xFF8000, " S", 0xFFFF30, "CL", 0x1FF01F, "AR", 0x80D1E3,
+          " K", 0x8F40D4, "CA", 0x3DFF00,
         };
 
         char e0 = p_[76];
