@@ -16,7 +16,7 @@
 //#include <filesystem>
 #include <vector>
 
-#include <meshutils/scene.hpp>
+#include <gilgamesh/scene.hpp>
 #include <minizip/deflate_decoder.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -24,7 +24,7 @@
 // see https://code.blender.org/2013/08/fbx-binary-file-format-specification/
 // and https://banexdevblog.wordpress.com/2014/06/23/a-quick-tutorial-about-the-fbx-ascii-format/
 
-namespace meshutils {
+namespace gilgamesh {
 
   class fbx_decoder {
     enum { debug = 1 };
@@ -36,7 +36,7 @@ namespace meshutils {
     // Load a scene from a file
     // note that this is not thread safe!
     template<class MeshType>
-    bool loadScene(meshutils::scene &scene, const std::string &filename) {
+    bool loadScene(gilgamesh::scene &scene, const std::string &filename) {
       std::vector<char> bytes;
       init(bytes, filename);
       return load<MeshType>(scene);
@@ -45,7 +45,7 @@ namespace meshutils {
     // Load a scene from memory
     // note that this is not thread safe!
     template<class MeshType>
-    bool loadScene(meshutils::scene &scene, const char *begin, const char *end) {
+    bool loadScene(gilgamesh::scene &scene, const char *begin, const char *end) {
       init(begin, end);
       return load<MeshType>(scene);
     }
@@ -273,7 +273,7 @@ namespace meshutils {
     };
 
     template<class MeshType>
-    bool load(meshutils::scene &scene) {
+    bool load(gilgamesh::scene &scene) {
       std::vector<double> fbxVertices;
       std::vector<double> fbxNormals;
       std::vector<double> fbxUVs;

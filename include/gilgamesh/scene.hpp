@@ -2,18 +2,18 @@
 //
 // (C) Andy Thomason 2016
 //
-// meshutils: scene class: collection of meshes with a matrix heirachy
+// gilgamesh: scene class: collection of meshes with a matrix heirachy
 // 
 
 #ifndef MESHUTILS_SCENE_INCLUDED
 #define MESHUTILS_SCENE_INCLUDED
 
-#include <meshutils/mesh.hpp>
+#include <gilgamesh/mesh.hpp>
 #include <vector>
 #include <memory>
 
 // Scene class. Note that the scene does not own its components.
-namespace meshutils {
+namespace gilgamesh {
   class scene {
   public:
     scene() {

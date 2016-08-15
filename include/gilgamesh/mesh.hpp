@@ -2,7 +2,7 @@
 //
 // (C) Andy Thomason 2016
 //
-// meshutils: basic mesh class
+// gilgamesh: basic mesh class
 // 
 
 #ifndef MESHUTILS_MESH_INCLUDED
@@ -18,7 +18,7 @@
 #include <memory>
 #include <stdio.h>
 
-namespace meshutils {
+namespace gilgamesh {
 
 struct attribute {
   const char *name;

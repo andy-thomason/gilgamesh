@@ -6,7 +6,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#include <meshutils/decoders/fbx_decoder.hpp>
+#include <gilgamesh/decoders/fbx_decoder.hpp>
 
 int main(int argc, char **argv) {
   const char *filename = nullptr;
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     filename = CMAKE_SOURCE "/examples/data/cube.fbx";
   }
 
-  meshutils::fbx_decoder fbx;
+  gilgamesh::fbx_decoder fbx;
   
   fbx.dump(std::cout, filename);
 }

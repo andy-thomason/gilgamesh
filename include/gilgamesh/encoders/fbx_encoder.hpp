@@ -16,13 +16,13 @@
 #include <cstring>
 
 #include <glm/glm.hpp>
-#include <meshutils/mesh.hpp>
-#include <meshutils/scene.hpp>
+#include <gilgamesh/mesh.hpp>
+#include <gilgamesh/scene.hpp>
 
 // see https://code.blender.org/2013/08/fbx-binary-file-format-specification/
 // and https://banexdevblog.wordpress.com/2014/06/23/a-quick-tutorial-about-the-fbx-ascii-format/
 
-namespace meshutils {
+namespace gilgamesh {
   template<class ValueType, class IdxType>
   void make_index(std::vector<ValueType> &values_out, std::vector<IdxType> &idx_out, const std::vector<ValueType> &values_in) {
     struct evec_t {
@@ -61,24 +61,24 @@ namespace meshutils {
     fbx_encoder() {
     }
 
-    void saveMesh(meshutils::mesh &mesh, const std::string &filename) {
+    void saveMesh(gilgamesh::mesh &mesh, const std::string &filename) {
       auto bytes = saveMesh(mesh);
       std::ofstream(filename, std::ios_base::binary).write((char*)bytes.data(), bytes.size());
     }
 
-    void saveScene(const meshutils::scene &scene, const std::string &filename) {
+    void saveScene(const gilgamesh::scene &scene, const std::string &filename) {
       auto bytes = saveScene(scene);
       std::ofstream(filename, std::ios_base::binary).write((char*)bytes.data(), bytes.size());
     }
 
-    std::vector<uint8_t> saveMesh(meshutils::mesh &mesh) {
-      meshutils::scene scene;
+    std::vector<uint8_t> saveMesh(gilgamesh::mesh &mesh) {
+      gilgamesh::scene scene;
       scene.addMesh(&mesh);
       scene.addNode(glm::mat4(), 0, 0);
       return std::move(saveScene(scene));
     }
 
-    std::vector<uint8_t> saveScene(const meshutils::scene &scene) {
+    std::vector<uint8_t> saveScene(const gilgamesh::scene &scene) {
       //const std::vector<const mesh*> &meshes, const std::vector<glm::mat4> &transforms, const std::vector<int> &parent_transforms, const std::vector<int> &mesh_indices) {
       bytes_.resize(0);
 

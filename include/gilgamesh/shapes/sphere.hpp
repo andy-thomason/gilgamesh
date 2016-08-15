@@ -2,7 +2,7 @@
 //
 // (C) Andy Thomason 2016
 //
-// meshutils: sphere geometry class
+// gilgamesh: sphere geometry class
 // 
 
 #ifndef MESHUTILS_SPHERE_INCLUDED
@@ -10,7 +10,7 @@
 
 #include <glm/glm.hpp>
 
-namespace meshutils {
+namespace gilgamesh {
 
 // A sphere centred on the origin.
 class sphere {
@@ -19,7 +19,7 @@ public:
   }
 
   // call this function to make a mesh
-  // This works with the meshutils mesh, but is still generic.
+  // This works with the gilgamesh mesh, but is still generic.
   template <class Mesh>
   size_t build(Mesh &mesh, const glm::mat4 &transform = glm::mat4(), const glm::vec4 &color=glm::vec4(1), int num_lattitude=10) {
     auto vertex = [&mesh, &transform, &color](const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv) {
@@ -87,6 +87,6 @@ private:
   float radius_;
 };
 
-} // meshutils
+} // gilgamesh
 
 #endif

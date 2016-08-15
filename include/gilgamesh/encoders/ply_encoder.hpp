@@ -2,13 +2,13 @@
 //
 // (C) Andy Thomason 2016
 //
-// meshutils: Stanford PLY encoder class
+// gilgamesh: Stanford PLY encoder class
 // 
 
 #ifndef MESHUTILS_PLY_ENCODER_INCLUDED
 #define MESHUTILS_PLY_ENCODER_INCLUDED
 
-namespace meshutils {
+namespace gilgamesh {
 
 class ply_encoder {
 public:
@@ -28,7 +28,7 @@ public:
     } else {
       wr("format binary_little_endian 1.0\n");
     }
-    wr("comment Created by https://github.com/andy-thomason/meshutils\n");
+    wr("comment Created by https://github.com/andy-thomason/gilgamesh\n");
     snprintf(tmp, sizeof(tmp), "element vertex %d\n", (int)mesh.vertices().size());
     wr(tmp);
 

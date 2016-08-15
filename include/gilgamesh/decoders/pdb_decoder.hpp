@@ -21,7 +21,7 @@
 
 // https://en.wikipedia.org/wiki/Protein_Data_Bank_(file_format)
 // https://www.cgl.ucsf.edu/chimera/docs/UsersGuide/tutorials/framepdbintro.html
-namespace meshutils {
+namespace gilgamesh {
   class pdb_decoder {
   public:
     class atom {

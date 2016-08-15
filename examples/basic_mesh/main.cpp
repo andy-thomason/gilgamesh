@@ -1,22 +1,22 @@
 
-#include <meshutils/mesh.hpp>
-#include <meshutils/shapes/box.hpp>
-#include <meshutils/shapes/sphere.hpp>
-#include <meshutils/shapes/cylinder.hpp>
-#include <meshutils/encoders/fbx_encoder.hpp>
-#include <meshutils/decoders/fbx_decoder.hpp>
+#include <gilgamesh/mesh.hpp>
+#include <gilgamesh/shapes/box.hpp>
+#include <gilgamesh/shapes/sphere.hpp>
+#include <gilgamesh/shapes/cylinder.hpp>
+#include <gilgamesh/encoders/fbx_encoder.hpp>
+#include <gilgamesh/decoders/fbx_decoder.hpp>
 #include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 int main() {
-  meshutils::color_mesh mesh;
-  meshutils::fbx_encoder encoder;
-  meshutils::fbx_decoder decoder;
+  gilgamesh::color_mesh mesh;
+  gilgamesh::fbx_encoder encoder;
+  gilgamesh::fbx_decoder decoder;
   glm::mat4 mat;
 
   printf("building a cube\n");
-  meshutils::box box{};
+  gilgamesh::box box{};
   box.build(mesh, mat, glm::vec4(1, 0, 0, 1));
 
   printf("writing cube.fbx\n");
@@ -25,7 +25,7 @@ int main() {
   mesh.clear();
 
   printf("building a sphere\n");
-  meshutils::sphere sphere{};
+  gilgamesh::sphere sphere{};
   sphere.build(mesh, mat, glm::vec4(0, 1, 0, 1));
 
   printf("writing sphere.fbx\n");
@@ -34,7 +34,7 @@ int main() {
   mesh.clear();
 
   printf("building a cylinder\n");
-  meshutils::cylinder cylinder{};
+  gilgamesh::cylinder cylinder{};
   cylinder.build(mesh, mat, glm::vec4(0, 0, 1, 1));
 
   printf("writing cylinder.fbx\n");

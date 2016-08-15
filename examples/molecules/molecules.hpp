@@ -7,11 +7,11 @@
 //
 
 
-#include <meshutils/mesh.hpp>
-#include <meshutils/decoders/pdb_decoder.hpp>
-#include <meshutils/encoders/fbx_encoder.hpp>
-#include <meshutils/shapes/sphere.hpp>
-#include <meshutils/shapes/cylinder.hpp>
+#include <gilgamesh/mesh.hpp>
+#include <gilgamesh/decoders/pdb_decoder.hpp>
+#include <gilgamesh/encoders/fbx_encoder.hpp>
+#include <gilgamesh/shapes/sphere.hpp>
+#include <gilgamesh/shapes/cylinder.hpp>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -92,9 +92,9 @@ public:
       file.read((char*)text.data(), text.size());
     } 
   
-    meshutils::pdb_decoder pdb(text.data(), text.data() + text.size());
+    gilgamesh::pdb_decoder pdb(text.data(), text.data() + text.size());
 
-    meshutils::fbx_encoder encoder;
+    gilgamesh::fbx_encoder encoder;
     std::string pdb_chains = pdb.chains();
   
     if (list_chains) {
@@ -146,7 +146,7 @@ public:
       }
     }
 
-    meshutils::color_mesh mesh;
+    gilgamesh::color_mesh mesh;
 
     if (!strcmp(cmd, "se")) {
       generate_solvent_excluded_mesh(mesh, pos, radii, colors, grid_spacing);
@@ -179,11 +179,11 @@ public:
   }
 
 private:
-  void generate_ball_and_stick_mesh(meshutils::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, std::vector<std::pair<int, int> > &connections) {
+  void generate_ball_and_stick_mesh(gilgamesh::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, std::vector<std::pair<int, int> > &connections) {
     glm::mat4 mat;
     for (size_t i = 0; i != pos.size(); ++i) {
       mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
-      meshutils::sphere s(radii[i] * 0.25f);
+      gilgamesh::sphere s(radii[i] * 0.25f);
       s.build(mesh, mat, colors[i], 5);
     }
     for (auto &c : connections) {
@@ -201,20 +201,20 @@ private:
       mat[2] = glm::vec4(z, 0);
       if (c0 == c1) {
         printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
-        meshutils::cylinder cyl(0.15f, len);
+        gilgamesh::cylinder cyl(0.15f, len);
         mat[3] = glm::vec4((pos0 + pos1) * 0.5f, 1);
-        cyl.build(mesh, mat, colors[c.first], 1, 8, meshutils::cylinder::body);
+        cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
       } else {
-        meshutils::cylinder cyl(0.15f, len * 0.5);
+        gilgamesh::cylinder cyl(0.15f, len * 0.5);
         mat[3] = glm::vec4(pos0 * 0.75f + pos1 * 0.25f, 1);
-        cyl.build(mesh, mat, colors[c.first], 1, 8, meshutils::cylinder::body);
+        cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
         mat[3] = glm::vec4(pos0 * 0.25f + pos1 * 0.75f, 1);
-        cyl.build(mesh, mat, colors[c.second], 1, 8, meshutils::cylinder::body);
+        cyl.build(mesh, mat, colors[c.second], 1, 8, gilgamesh::cylinder::body);
       }
     }
   }
 
-  void generate_solvent_excluded_mesh(meshutils::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, float grid_spacing) {
+  void generate_solvent_excluded_mesh(gilgamesh::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, float grid_spacing) {
     struct colored_atom {
       glm::vec4 color;
       glm::vec3 pos;
@@ -287,11 +287,11 @@ private:
 
     auto gen = [&accessible, grid_spacing, min, idx](float x, float y, float z) {
       glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
-      return meshutils::pos_mesh::vertex_t(xyz);
+      return gilgamesh::pos_mesh::vertex_t(xyz);
     };
 
     // construct the accessible mesh using marching cubes
-    meshutils::pos_mesh amesh(xdim, ydim, zdim, fn, gen);
+    gilgamesh::pos_mesh amesh(xdim, ydim, zdim, fn, gen);
 
     std::vector<glm::vec3> zsorter;
 
@@ -374,11 +374,11 @@ private:
       color.x *= (1.0f/num_influences);
       color.y *= (1.0f/num_influences);
       color.z *= (1.0f/num_influences);
-      return meshutils::color_mesh::vertex_t(xyz, normal, uv, color);
+      return gilgamesh::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 
     // construct the excluded mesh using marching cubes
-    meshutils::color_mesh emesh(xdim, ydim, zdim, efn, egen);
+    gilgamesh::color_mesh emesh(xdim, ydim, zdim, efn, egen);
 
     // use move operator to shallow copy the mesh.
     mesh = std::move(emesh);

@@ -2,7 +2,7 @@
 //
 // (C) Andy Thomason 2016
 //
-// meshutils: cylinder geometry class
+// gilgamesh: cylinder geometry class
 // 
 
 #ifndef MESHUTILS_CYLINDER_INCLUDED
@@ -12,7 +12,7 @@
 #include <glm/glm.hpp>
 #include <cmath>
 
-namespace meshutils {
+namespace gilgamesh {
 
 // A cylinder centred on the origin with 'y' axis
 class cylinder {
@@ -27,7 +27,7 @@ public:
   }
 
   // call this function to make a mesh
-  // This works with the meshutils mesh, but is still generic.
+  // This works with the gilgamesh mesh, but is still generic.
   template <class Mesh>
   size_t build(Mesh &mesh, const glm::mat4 &transform = glm::mat4(), const glm::vec4 &color=glm::vec4(1), int num_y_segments=1, int num_radial_segments=16, feature features=(feature)(top|body|bottom)) {
     auto vertex = [&mesh, &transform, &color](const glm::vec3 &pos, const glm::vec3 &normal, const glm::vec2 &uv) {
@@ -126,6 +126,6 @@ private:
   float height_;
 };
 
-} // meshutils
+} // gilgamesh
 
 #endif
