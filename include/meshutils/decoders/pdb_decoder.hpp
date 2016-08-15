@@ -272,14 +272,20 @@ namespace meshutils {
 
         struct data_t { char name[4]; uint32_t color; };
 
-        static const data_t data[] = {
+        static const data_t cpk[] = {
           " H", 0xffffff, " C", 0x222222, " N", 0x2233ff, " O", 0xff2200, " S", 0xdddd00,
+        };
+        static const data_t jmol[] = {
+          " H", 0xffffff, "C ", 0X909090, "N ", 0X3050F8, "O ", 0XFF0D0D, "F ", 0X90E050,
+          "NA", 0XAB5CF2, "MG", 0X8AFF00, "AL", 0XBFA6A6, "SI", 0XF0C8A0,
+          "P ", 0XFF8000, "S ", 0XFFFF30, "CL", 0X1FF01F, "AR", 0X80D1E3,
+          "K ", 0X8F40D4, "CA", 0X3DFF00,
         };
 
         char e0 = p_[76];
         char e1 = p_[77];
         uint32_t color = 0xdd77ff;
-        for (const data_t &d : data) {
+        for (const data_t &d : jmol) {
           if (e0 == d.name[0] && e1 == d.name[1]) {
             color = d.color;
             break;
