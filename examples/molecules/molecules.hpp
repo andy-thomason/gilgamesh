@@ -192,11 +192,25 @@ private:
       glm::vec4 c0 = colors[c.first];
       glm::vec4 c1 = colors[c.second];
       glm::vec3 up = glm::vec3(0, 1, 0);
-      glm::vec3 mid = (pos0 + pos1) * 0.5f;
-      glm::mat4 mat = glm::lookAt(mid, pos1, up);
+      glm::vec3 y = glm::normalize(pos1 - pos0);
+      glm::vec3 x = glm::normalize(glm::cross(y, up));
+      glm::vec3 z = glm::cross(x, y);
       float len = glm::length(pos1 - pos0);
-      meshutils::cylinder cyl(0.25f, len);
-      cyl.build(mesh, mat, colors[c.first], meshutils::cylinder::body);
+      mat[0] = glm::vec4(x, 0);
+      mat[1] = glm::vec4(y, 0);
+      mat[2] = glm::vec4(z, 0);
+      if (c0 == c1) {
+        printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
+        meshutils::cylinder cyl(0.15f, len);
+        mat[3] = glm::vec4((pos0 + pos1) * 0.5f, 1);
+        cyl.build(mesh, mat, colors[c.first], 1, 8, meshutils::cylinder::body);
+      } else {
+        meshutils::cylinder cyl(0.15f, len * 0.5);
+        mat[3] = glm::vec4(pos0 * 0.75f + pos1 * 0.25f, 1);
+        cyl.build(mesh, mat, colors[c.first], 1, 8, meshutils::cylinder::body);
+        mat[3] = glm::vec4(pos0 * 0.25f + pos1 * 0.75f, 1);
+        cyl.build(mesh, mat, colors[c.second], 1, 8, meshutils::cylinder::body);
+      }
     }
   }
 
