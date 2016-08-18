@@ -31,7 +31,7 @@ public:
   molecules(int argc, char **argv) {
     const char *pdb_filename = nullptr;
     const char *output_path = "";
-    const char *grid_spacing_text = "1.0";
+    const char *lod_text = "0";
     bool error = false;
     bool list_chains = false;
     const char *chains = "A-Z";
@@ -39,8 +39,8 @@ public:
 
     for (int i = 1; i != argc; ++i) {
       const char *arg = argv[i];
-      if (!strcmp(arg, "--grid-spacing") && i < argc-1) {
-        grid_spacing_text = argv[++i];
+      if (!strcmp(arg, "--lod") && i < argc-1) {
+        lod_text = argv[++i];
       } else if (!strcmp(arg, "--chains") && i < argc-1) {
         chains = argv[++i];
       } else if (!strcmp(arg, "-o") && i < argc-1) {
@@ -62,7 +62,8 @@ public:
       }
     }
 
-    float grid_spacing = float(atof(grid_spacing_text));
+    // at --lod 0, grid_spacing=1  at --lod 1, grid_spacing=0.5 etc.
+    float grid_spacing = std::pow(2, -float(atof(lod_text)));
 
     if (pdb_filename == nullptr || error) {
       printf(
@@ -71,7 +72,7 @@ public:
         "molecules bs <options> <pdb file name> ... generate a ball and stick mesh\n\n"
         "You can specify which chains to use with the --chains option.\n"
         "\noptions:\n"
-        "--grid-spacing <n>\tgrid spacing (default 0.25) smaller gives more vertices\n"
+        "--lod <n>\tLevel of detail. 0=lowest, 1=medium, 2=highest. This is logarthmic.\n"
         "--chains <n>\teg. A-E or ABDEG set of chains to use for generating FBX files. defaults to A-Z...\n"
         "--list-chains <n>\tjust list the chains in the PDB file\n"
         "--output-path <dir>\tdirectory to output files to\n"
@@ -90,7 +91,7 @@ public:
 
       file.seekg(0, std::ios_base::beg);
       file.read((char*)text.data(), text.size());
-    } 
+    }
   
     gilgamesh::pdb_decoder pdb(text.data(), text.data() + text.size());
 
@@ -130,21 +131,31 @@ public:
       auto &p = atoms[idx];
       char chainID = p.chainID();
       if (expanded_chains.find(chainID) != std::string::npos) {
-        pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
-        radii.push_back(p.vanDerVaalsRadius());
         if (cmd[0] == 'b') {
           colors.push_back(p.colorByElement());
           if (p.atomNameIs(" N  ")) {
-            p.addImplicitConnections(connections, idx);
-            if (prevC != -1 && prevChainID == chainID) {
-              connections.emplace_back(prevC, idx);
+            int resSeq = p.resSeq(), j = 0;
+            for (j = idx; j != atoms.size(); ++j) {
+              if (atoms[j].resSeq() != resSeq) {
+                break;
+              }
             }
-            prevC = idx + 2;
+            const auto *b = atoms.data() + idx;
+            const auto *e = atoms.data() + j;
+            // At the start of every Amino Acid, connect the atoms.
+            int N_idx = int(pos.size());
+            int C_idx = gilgamesh::pdb_decoder::addImplicitConnections(connections, b, e, N_idx);
+            if (prevC != -1 && prevChainID == chainID) {
+              connections.emplace_back(prevC, C_idx);
+            }
+            prevC = C_idx;
             prevChainID = chainID;
           }
         } else {
           colors.push_back(p.colorByFunction());
         }
+        pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+        radii.push_back(p.vanDerVaalsRadius());
       }
     }
 
@@ -173,7 +184,7 @@ public:
     std::string stem;
     stem.assign(last_slash, last_dot);
 
-    const char *out_filename = fmt("%s_%s_%s_%s.fbx", stem.c_str(), expanded_chains.c_str(), cmd, grid_spacing_text);
+    const char *out_filename = fmt("%s_%s_%s_%s.fbx", stem.c_str(), expanded_chains.c_str(), cmd, lod_text);
     printf("writing %s (%d vertices)\n", out_filename, int(mesh.vertices().size()));
     std::ofstream eof(out_filename, std::ios::binary);
     std::vector<uint8_t> bytes = encoder.saveMesh(mesh);

@@ -99,7 +99,6 @@ namespace gilgamesh {
         result.emplace_back(N, CA);
         result.emplace_back(CA, C);
         result.emplace_back(CA, O);
-        return;
 
         if (!resNameIs("GLY")) {
           result.emplace_back(CA, CB);
@@ -380,6 +379,146 @@ namespace gilgamesh {
         if (used[i]) result.push_back((char)i);
       }
       return std::move(result);
+    }
+
+    static int addImplicitConnections(std::vector<std::pair<int, int> > out, const atom *atomb, const atom *atome, int N_idx) {
+      static const char table[][5] = {
+        "ASP",
+          " CB ", " CG ",
+          " CG ", " OD1",
+          " CG ", " OD2",
+        "ALA",
+        "CYS",
+          " CB ", " SG ",
+        "GLU",
+          " CB ", " CG ",
+          " CG ", " CD ",
+          " CD ", " OE1",
+          " CD ", " OE2",
+        "PHE",
+          " CB ", " CG ",
+          " CG ", " CD1",
+          " CG ", " CD2",
+          " CD1", " CE1",
+          " CD2", " CE2",
+          " CE1", " CZ ",
+          " CE2", " CZ ",
+        "GLY",
+        "HIS",
+          " CB ", " CG ",
+          " CG ", " ND1",
+          " CG ", " CD2",
+          " ND1", " CE1",
+          " CD2", " NE2",
+          " CE1", " NE2",
+        "ILE",
+          " CB ", " CG1",
+          " CB ", " CG2",
+          " CG1", " CG2",
+        "LYS",
+          " CB ", " CG ",
+          " CG ", " CD ",
+          " CD ", " CE ",
+          " CE ", " NZ ",
+        "LEU",
+          " CB ", " CG ",
+          " CG ", " CD1",
+          " CG ", " CD2",
+        "MET",
+          " CB ", " CG ",
+          " CG ", " SD ",
+          " SD ", " CE ",
+        "ASN",
+          " CB ", " CG ",
+          " CG ", " OD1",
+          " CG ", " ND2",
+        "PRO",
+          " CB ", " CG ",
+          " CG ", " CD ",
+        "GLN",
+          " CB ", " CG ",
+          " CG ", " CD ",
+          " CD ", " OE1",
+          " CD ", " NE2",
+        "ARG",
+          " CB ", " CG ",
+          " CG ", " CD ",
+          " CD ", " NE ",
+          " NE ", " CZ ",
+          " CZ ", " NH1",
+          " CZ ", " NH2",
+        "SER",
+          " CB ", " OG ",
+        "THR",
+          " CB ", " OG1",
+          " CB ", " CG2",
+        "VAL",
+          " CB ", " CG1",
+          " CB ", " CG2",
+        "TRP",
+          " CB ", " CG ",
+          " CG ", " CD1",
+          " CG ", " CD2",
+          " CD1", " NE1",
+          " CD2", " CE3",
+          " NE1", " CE2",
+          " CE2", " CZ2",
+          " CE3", " CZ3",
+          " CZ2", " CH2",
+          " CZ3", " CH2",
+        "TYR",
+          " CB ", " CG ",
+          " CG ", " CD1",
+          " CG ", " CD2",
+          " CD1", " CE1",
+          " CD2", " CE2",
+          " CE1", " CZ ",
+          " CE2", " CZ ",
+          " CZ ", " OH ",
+        ""
+      };
+
+      // find an atom relative to "N" in an amino acid.
+      auto find_atom = [atomb, atome, N_idx](const char *name) {
+        for (auto p = atomb; p != atome; ++p) {
+          if (p->atomNameIs(name)) {
+            return int(p - atomb) + N_idx;
+          }
+        }
+        return -1;
+      };
+
+
+      int C_idx = find_atom(" C  ");
+      int O_idx = find_atom(" O  ");
+      int CA_idx = find_atom(" CA ");
+      int CB_idx = find_atom(" CB ");
+
+      printf("find %s N%d C%d O%d CA%d CB%d\n", atomb->resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
+
+      out.emplace_back(N_idx, C_idx);
+      if (CA_idx != -1) out.emplace_back(C_idx, CA_idx);
+      if (CA_idx != -1 && CB_idx != -1) out.emplace_back(CA_idx, CB_idx);
+      out.emplace_back(C_idx, O_idx);
+
+      for (size_t i = 0; table[i][0]; ++i) {
+        if (table[i][0] >= 'A' && atomb->resNameIs(table[i])) {
+          printf("%s\n", table[i]);
+          ++i;
+          while (table[i][0] == ' ') {
+            printf("  %s %s\n", table[i], table[i+1]);
+            int from = find_atom(table[i]);
+            int to = find_atom(table[i+1]);
+            i += 2;
+            printf("  %d..%d\n", from, to);
+            out.emplace_back(from, to);
+            if (from == -1 || to == -1) printf("OUCH!\n");
+          }
+          break;
+        }
+      }
+
+      return C_idx;
     }
 
   private:
