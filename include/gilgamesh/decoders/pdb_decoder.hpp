@@ -494,7 +494,7 @@ namespace gilgamesh {
       int CA_idx = find_atom(" CA ");
       int CB_idx = find_atom(" CB ");
 
-      printf("find %s N%d C%d O%d CA%d CB%d\n", atomb->resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
+      //printf("find %s N%d C%d O%d CA%d CB%d\n", atomb->resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
 
       out.emplace_back(N_idx, C_idx);
       if (CA_idx != -1) out.emplace_back(C_idx, CA_idx);
@@ -503,16 +503,16 @@ namespace gilgamesh {
 
       for (size_t i = 0; table[i][0]; ++i) {
         if (table[i][0] >= 'A' && atomb->resNameIs(table[i])) {
-          printf("%s\n", table[i]);
+          //printf("%s\n", table[i]);
           ++i;
           while (table[i][0] == ' ') {
-            printf("  %s %s\n", table[i], table[i+1]);
+            //printf("  %s %s\n", table[i], table[i+1]);
             int from = find_atom(table[i]);
             int to = find_atom(table[i+1]);
             i += 2;
-            printf("  %d..%d\n", from, to);
+            //printf("  %d..%d\n", from, to);
             out.emplace_back(from, to);
-            if (from == -1 || to == -1) printf("OUCH!\n");
+            //if (from == -1 || to == -1) printf("OUCH!\n");
           }
           break;
         }

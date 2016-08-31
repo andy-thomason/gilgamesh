@@ -65,7 +65,7 @@ public:
     // at --lod 0, grid_spacing=1  at --lod 1, grid_spacing=0.5 etc.
     float grid_spacing = std::pow(2, -float(atof(lod_text)));
 
-    if (pdb_filename == nullptr || error) {
+    if (pdb_filename == nullptr || error || !cmd[0]) {
       printf(
         "usage:\n"
         "molecules se <options> <pdb file name> ... generate a solvent excluded mesh\n\n"
@@ -127,14 +127,16 @@ public:
     auto atoms = pdb.atoms();
     int prevC = -1;
     char prevChainID = '?';
+    int prev_resSeq = -1;
     for (int idx = 0; idx != atoms.size(); ++idx) {
       auto &p = atoms[idx];
       char chainID = p.chainID();
       if (expanded_chains.find(chainID) != std::string::npos) {
         if (cmd[0] == 'b') {
           colors.push_back(p.colorByElement());
-          if (p.atomNameIs(" N  ")) {
+          if (p.resSeq() != prev_resSeq) {
             int resSeq = p.resSeq(), j = 0;
+            prev_resSeq = resSeq;
             for (j = idx; j != atoms.size(); ++j) {
               if (atoms[j].resSeq() != resSeq) {
                 break;
@@ -146,7 +148,7 @@ public:
             int N_idx = int(pos.size());
             int C_idx = gilgamesh::pdb_decoder::addImplicitConnections(connections, b, e, N_idx);
             if (prevC != -1 && prevChainID == chainID) {
-              connections.emplace_back(prevC, C_idx);
+              connections.emplace_back(prevC, N_idx);
             }
             prevC = C_idx;
             prevChainID = chainID;
@@ -212,7 +214,9 @@ private:
       mat[0] = glm::vec4(x, 0);
       mat[1] = glm::vec4(y, 0);
       mat[2] = glm::vec4(z, 0);
-      printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
+      if (len >= 2.0f) {
+        printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
+      }
       if (c0 == c1) {
         gilgamesh::cylinder cyl(0.15f, len);
         mat[3] = glm::vec4((pos0 + pos1) * 0.5f, 1);
