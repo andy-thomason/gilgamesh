@@ -63,7 +63,7 @@ public:
     }
 
     // at --lod 0, grid_spacing=1  at --lod 1, grid_spacing=0.5 etc.
-    float grid_spacing = std::pow(2, -float(atof(lod_text)));
+    float grid_spacing = std::pow(2.0f, -float(atof(lod_text)));
 
     if (pdb_filename == nullptr || error || !cmd[0]) {
       printf(
@@ -144,6 +144,7 @@ public:
             }
             const auto *b = atoms.data() + idx;
             const auto *e = atoms.data() + j;
+
             // At the start of every Amino Acid, connect the atoms.
             int N_idx = int(pos.size());
             int C_idx = gilgamesh::pdb_decoder::addImplicitConnections(connections, b, e, N_idx);
@@ -198,9 +199,10 @@ private:
     glm::mat4 mat;
     for (size_t i = 0; i != pos.size(); ++i) {
       mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
-      gilgamesh::sphere s(radii[i] * 0.25f);
-      s.build(mesh, mat, colors[i], 5);
+      gilgamesh::sphere s(0.20f);
+      s.build(mesh, mat, colors[i], 9);
     }
+
     for (auto &c : connections) {
       glm::vec3 pos0 = pos[c.first];
       glm::vec3 pos1 = pos[c.second];
@@ -214,15 +216,15 @@ private:
       mat[0] = glm::vec4(x, 0);
       mat[1] = glm::vec4(y, 0);
       mat[2] = glm::vec4(z, 0);
-      if (len >= 2.0f) {
+      /*if (len >= 3.0 || len <= 0.001f) {
         printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
-      }
+      }*/
       if (c0 == c1) {
         gilgamesh::cylinder cyl(0.15f, len);
         mat[3] = glm::vec4((pos0 + pos1) * 0.5f, 1);
         cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
       } else {
-        gilgamesh::cylinder cyl(0.15f, len * 0.5);
+        gilgamesh::cylinder cyl(0.15f, len * 0.5f);
         mat[3] = glm::vec4(pos0 * 0.75f + pos1 * 0.25f, 1);
         cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
         mat[3] = glm::vec4(pos0 * 0.25f + pos1 * 0.75f, 1);

@@ -381,7 +381,7 @@ namespace gilgamesh {
       return std::move(result);
     }
 
-    static int addImplicitConnections(std::vector<std::pair<int, int> > out, const atom *atomb, const atom *atome, int N_idx) {
+    static int addImplicitConnections(std::vector<std::pair<int, int> > &out, const atom *atomb, const atom *atome, int N_idx) {
       static const char table[][5] = {
         "ASP",
           " CB ", " CG ",
@@ -512,7 +512,7 @@ namespace gilgamesh {
             i += 2;
             //printf("  %d..%d\n", from, to);
             out.emplace_back(from, to);
-            //if (from == -1 || to == -1) printf("OUCH!\n");
+            if (from == -1 || to == -1) printf("OUCH!\n");
           }
           break;
         }
