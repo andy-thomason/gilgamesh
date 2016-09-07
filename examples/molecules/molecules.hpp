@@ -200,7 +200,7 @@ private:
     for (size_t i = 0; i != pos.size(); ++i) {
       mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
       gilgamesh::sphere s(0.20f);
-      s.build(mesh, mat, colors[i], 9);
+      s.build(mesh, mat, colors[i], 5);
     }
 
     for (auto &c : connections) {

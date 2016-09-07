@@ -512,7 +512,7 @@ namespace gilgamesh {
             i += 2;
             //printf("  %d..%d\n", from, to);
             out.emplace_back(from, to);
-            if (from == -1 || to == -1) printf("OUCH!\n");
+            //if (from == -1 || to == -1) printf("OUCH!\n");
           }
           break;
         }

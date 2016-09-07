@@ -219,55 +219,6 @@ public:
   template<class Function, class Generator>
   basic_mesh(int xdim, int ydim, int zdim, Function fn, Generator vertex_generator) {
     // Now build the marching cubes triangles.
-    // Each cube owns three edges 0->1 0->3 0->4
-    std::vector<int> edge_indices(xdim*ydim*zdim*3);
-
-    for (size_t i = 0; i != edge_indices.size(); ++i) {
-      edge_indices [i] = -1;
-    }
-
-    // Build the vertices first. One for each edge that changes sign.
-    for (int k = 0; k != zdim; ++k) {
-      for (int j = 0; j != ydim; ++j) {
-        for (int i = 0; i != xdim; ++i) {
-          int idx = (k * ydim + j) * xdim + i;
-          float v0 = fn(i, j, k);
-          float fi = (float)i;
-          float fj = (float)j;
-          float fk = (float)k;
-
-          // x edges
-          if (i != xdim-1) {
-            float v1 = fn(i+1, j, k);
-            if (v0 * v1 <= 0) {
-              float lambda = v0 / (v0 - v1);
-              edge_indices[idx*3+0] = (int)vertices_.size();
-              vertices_.push_back(vertex_generator(fi + lambda, fj, fk));
-            }
-          }
-
-          // y edges
-          if (j != ydim-1) {
-            float v1 = fn(i, j+1, k);
-            if (v0 * v1 <= 0) {
-              float lambda = v0 / (v0 - v1);
-              edge_indices[idx*3+1] = (int)vertices_.size();
-              vertices_.push_back(vertex_generator(fi, fj + lambda, fk));
-            }
-          }
-
-          // z edges
-          if (k != zdim-1) {
-            float v1 = fn(i, j, k+1);
-            if (v0 * v1 <= 0) {
-              float lambda = v0 / (v0 - v1);
-              edge_indices[idx*3+2] = (int)vertices_.size();
-              vertices_.push_back(vertex_generator(fi, fj, fk + lambda));
-            }
-          }
-        }
-      }
-    }
 
     // This reproduced the vertex order of Paul Bourke's (borrowed) table.
     // The indices in edge_indices have the following offsets.
@@ -284,73 +235,131 @@ public:
     int dx = 3;
     int dy = xdim * 3;
     int dz = xdim * ydim * 3;
-    int edge_offsets[] = {
-      0 * dx + 0 * dy + 0 * dz + 0,  // 0,1, (this cube, x component)
-      1 * dx + 0 * dy + 0 * dz + 1,  // 1,2,
-      0 * dx + 1 * dy + 0 * dz + 0,  // 2,3,
-      0 * dx + 0 * dy + 0 * dz + 1,  // 3,0, (this cube, y component)
-      0 * dx + 0 * dy + 1 * dz + 0,  // 4,5,
-      1 * dx + 0 * dy + 1 * dz + 1,  // 5,6,
-      0 * dx + 1 * dy + 1 * dz + 0,  // 6,7,
-      0 * dx + 0 * dy + 1 * dz + 1,  // 7,4,
-      0 * dx + 0 * dy + 0 * dz + 2,  // 0,4, (this cube, z component)
-      1 * dx + 0 * dy + 0 * dz + 2,  // 1,5,
-      1 * dx + 1 * dy + 0 * dz + 2,  // 2,6,
-      0 * dx + 1 * dy + 0 * dz + 2,  // 3,7
-    };
         
-    // Build the indices. Use the mc_triangles table to choose triangles depending on sign.
-    for (int k = 0; k != zdim-1; ++k) {
-      for (int j = 0; j != ydim-1; ++j) {
-        for (int i = 0; i != xdim-1; ++i) {
-          int idx = (k * ydim + j) * xdim + i;
+    // Each cube owns three edges 0->1 0->3 0->4
+    // We need two slices of cube edges to make all the cubes in a slice.
+    std::vector<int> edge_indices(dz*2);
+
+    for (size_t i = 0; i != dz; ++i) {
+      edge_indices[dz+i] = -1;
+    }
+
+    // Build the vertices first. One for each edge that changes sign.
+    for (int k = 0; k != zdim; ++k) {
+      int ki = k & 1, xi = 1 - ki;
+      for (size_t i = 0; i != dz; ++i) {
+        edge_indices[dz*ki+i] = -1;
+      }
+
+      int edge_offsets[16] = {
+        0 * dx + 0 * dy + xi * dz + 0,  // 0,1, (this cube, x component)
+        1 * dx + 0 * dy + xi * dz + 1,  // 1,2,
+        0 * dx + 1 * dy + xi * dz + 0,  // 2,3,
+        0 * dx + 0 * dy + xi * dz + 1,  // 3,0, (this cube, y component)
+        0 * dx + 0 * dy + ki * dz + 0,  // 4,5,
+        1 * dx + 0 * dy + ki * dz + 1,  // 5,6,
+        0 * dx + 1 * dy + ki * dz + 0,  // 6,7,
+        0 * dx + 0 * dy + ki * dz + 1,  // 7,4,
+        0 * dx + 0 * dy + xi * dz + 2,  // 0,4, (this cube, z component)
+        1 * dx + 0 * dy + xi * dz + 2,  // 1,5,
+        1 * dx + 1 * dy + xi * dz + 2,  // 2,6,
+        0 * dx + 1 * dy + xi * dz + 2,  // 3,7
+        0, 0, 0, 0
+      };
+
+      for (int j = 0; j != ydim; ++j) {
+        for (int i = 0; i != xdim; ++i) {
+          int idx = j * xdim + i;
+          float v0 = fn(i, j, k);
           float fi = (float)i;
           float fj = (float)j;
           float fk = (float)k;
 
-          // Mask of vertices outside the isosurface (values are negative)
-          // Example:
-          //   00000001 means only vertex 0 is outside the surface.
-          //   10000000 means only vertex 7 is outside the surface.
-          //   11111111 all vertices are outside the surface.
-          // todo: the mask can be built incrementally.
-          float v000 = fn(i, j, k);
-          float v100 = fn(i+1, j, k);
-          float v010 = fn(i, j+1, k);
-          float v110 = fn(i+1, j+1, k);
-          float v001 = fn(i, j, k+1);
-          float v101 = fn(i+1, j, k+1);
-          float v011 = fn(i, j+1, k+1);
-          float v111 = fn(i+1, j+1, k+1);
+          // x edges
+          if (i != xdim-1) {
+            float v1 = fn(i+1, j, k);
+            if (v0 * v1 <= 0) {
+              float lambda = v0 / (v0 - v1);
+              edge_indices[ki*dz + idx*3+0] = (int)vertices_.size();
+              vertices_.push_back(vertex_generator(fi + lambda, fj, fk));
+            }
+          }
 
-          int mask = (
-            (v000 < 0 ? 1 << 0 : 0) |
-            (v100 < 0 ? 1 << 1 : 0) |
-            (v110 < 0 ? 1 << 2 : 0) |
-            (v010 < 0 ? 1 << 3 : 0) |
+          // y edges
+          if (j != ydim-1) {
+            float v1 = fn(i, j+1, k);
+            if (v0 * v1 <= 0) {
+              float lambda = v0 / (v0 - v1);
+              edge_indices[ki*dz + idx*3+1] = (int)vertices_.size();
+              vertices_.push_back(vertex_generator(fi, fj + lambda, fk));
+            }
+          }
+
+          // z edges
+          if (k != zdim-1) {
+            float v1 = fn(i, j, k+1);
+            if (v0 * v1 <= 0) {
+              float lambda = v0 / (v0 - v1);
+              edge_indices[ki*dz + idx*3+2] = (int)vertices_.size();
+              vertices_.push_back(vertex_generator(fi, fj, fk + lambda));
+            }
+          }
+        }
+      }
+
+      // Build the indices. Use the mc_triangles table to choose triangles depending on sign.
+      if (k != 0) {
+        for (int j = 0; j != ydim-1; ++j) {
+          for (int i = 0; i != xdim-1; ++i) {
+            int idx = j * xdim + i;
+            float fi = (float)i;
+            float fj = (float)j;
+            float fk = (float)k;
+
+            // Mask of vertices outside the isosurface (values are negative)
+            // Example:
+            //   00000001 means only vertex 0 is outside the surface.
+            //   10000000 means only vertex 7 is outside the surface.
+            //   11111111 all vertices are outside the surface.
+            // todo: the mask can be built incrementally.
+            float v000 = fn(i, j, k-1);
+            float v100 = fn(i+1, j, k-1);
+            float v010 = fn(i, j+1, k-1);
+            float v110 = fn(i+1, j+1, k-1);
+            float v001 = fn(i, j, k);
+            float v101 = fn(i+1, j, k);
+            float v011 = fn(i, j+1, k);
+            float v111 = fn(i+1, j+1, k);
+
+            int mask = (
+              (v000 < 0 ? 1 << 0 : 0) |
+              (v100 < 0 ? 1 << 1 : 0) |
+              (v110 < 0 ? 1 << 2 : 0) |
+              (v010 < 0 ? 1 << 3 : 0) |
           
-            (v001 < 0 ? 1 << 4 : 0) |
-            (v101 < 0 ? 1 << 5 : 0) |
-            (v111 < 0 ? 1 << 6 : 0) |
-            (v011 < 0 ? 1 << 7 : 0)
-          );
+              (v001 < 0 ? 1 << 4 : 0) |
+              (v101 < 0 ? 1 << 5 : 0) |
+              (v111 < 0 ? 1 << 6 : 0) |
+              (v011 < 0 ? 1 << 7 : 0)
+            );
 
-          uint64_t triangles = mc_triangles()[mask];
-          while ((triangles >> 60) != 0xc) {
-            // t0, t1, t2 choose one of twelve cube edges.
-            int t0 = triangles >> 60;
-            triangles <<= 4;
-            int t1 = triangles >> 60;
-            triangles <<= 4;
-            int t2 = triangles >> 60;
-            triangles <<= 4;
-            int i0 = edge_indices [idx*3 + edge_offsets [t0]];
-            int i1 = edge_indices [idx*3 + edge_offsets [t1]];
-            int i2 = edge_indices [idx*3 + edge_offsets [t2]];
-            if (i0 >= 0 && i1 >= 0 && i2 >= 0) {
-              indices_.push_back((index_t)i0);
-              indices_.push_back((index_t)i1);
-              indices_.push_back((index_t)i2);
+            uint64_t triangles = mc_triangles()[mask];
+            while ((triangles >> 60) != 0xc) {
+              // t0, t1, t2 choose one of twelve cube edges.
+              int t0 = triangles >> 60;
+              triangles <<= 4;
+              int t1 = triangles >> 60;
+              triangles <<= 4;
+              int t2 = triangles >> 60;
+              triangles <<= 4;
+              int i0 = edge_indices [idx*3 + edge_offsets [t0]];
+              int i1 = edge_indices [idx*3 + edge_offsets [t1]];
+              int i2 = edge_indices [idx*3 + edge_offsets [t2]];
+              if (i0 >= 0 && i1 >= 0 && i2 >= 0) {
+                indices_.push_back((index_t)i0);
+                indices_.push_back((index_t)i1);
+                indices_.push_back((index_t)i2);
+              }
             }
           }
         }
