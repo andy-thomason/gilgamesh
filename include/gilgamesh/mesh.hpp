@@ -235,73 +235,89 @@ public:
     int dx = 3;
     int dy = xdim * 3;
     int dz = xdim * ydim * 3;
+    int vdz = xdim * ydim;
+    int vertex_index = (int)vertices_.size();
         
     // Each cube owns three edges 0->1 0->3 0->4
     // We need two slices of cube edges to make all the cubes in a slice.
     std::vector<int> edge_indices(dz*2);
 
-    for (size_t i = 0; i != dz; ++i) {
+    // We need three slices in values[]
+    std::vector<float> values(vdz * 3);
+    float *valm1 = values.data() + vdz * 2;
+    float *val0 = values.data() + vdz * 0;
+    float *val1 = values.data() + vdz * 1;
+    //int offm1 = vdz * 2, off0 = vdz * 0, off1 = vdz * 1;
+
+    // fill first slices of edges and values
+    for (int i = 0; i != dz; ++i) {
       edge_indices[dz+i] = -1;
+    }
+
+    for (int j = 0; j != ydim; ++j) {
+      for (int i = 0; i != xdim; ++i) {
+        int idx = j * xdim + i;
+        val0[idx] = fn(i, j, 0);
+      }
     }
 
     // Build the vertices first. One for each edge that changes sign.
     for (int k = 0; k != zdim; ++k) {
-      int ki = k & 1, xi = 1 - ki;
-      for (size_t i = 0; i != dz; ++i) {
-        edge_indices[dz*ki+i] = -1;
+      int odd = k & 1, even = 1 - odd;
+      for (int i = 0; i != dz; ++i) {
+        edge_indices[dz*odd+i] = -1;
       }
 
-      int edge_offsets[16] = {
-        0 * dx + 0 * dy + xi * dz + 0,  // 0,1, (this cube, x component)
-        1 * dx + 0 * dy + xi * dz + 1,  // 1,2,
-        0 * dx + 1 * dy + xi * dz + 0,  // 2,3,
-        0 * dx + 0 * dy + xi * dz + 1,  // 3,0, (this cube, y component)
-        0 * dx + 0 * dy + ki * dz + 0,  // 4,5,
-        1 * dx + 0 * dy + ki * dz + 1,  // 5,6,
-        0 * dx + 1 * dy + ki * dz + 0,  // 6,7,
-        0 * dx + 0 * dy + ki * dz + 1,  // 7,4,
-        0 * dx + 0 * dy + xi * dz + 2,  // 0,4, (this cube, z component)
-        1 * dx + 0 * dy + xi * dz + 2,  // 1,5,
-        1 * dx + 1 * dy + xi * dz + 2,  // 2,6,
-        0 * dx + 1 * dy + xi * dz + 2,  // 3,7
-        0, 0, 0, 0
-      };
+      if (k != zdim-1) {
+        for (int j = 0; j != ydim; ++j) {
+          for (int i = 0; i != xdim; ++i) {
+            int idx = j * xdim + i;
+            val1[idx] = fn(i, j, k+1);
+          }
+        }
+      }
 
       for (int j = 0; j != ydim; ++j) {
         for (int i = 0; i != xdim; ++i) {
           int idx = j * xdim + i;
-          float v0 = fn(i, j, k);
+          float v0 = val0[idx];
           float fi = (float)i;
           float fj = (float)j;
           float fk = (float)k;
 
           // x edges
           if (i != xdim-1) {
-            float v1 = fn(i+1, j, k);
-            if (v0 * v1 <= 0) {
+            float v1 = val0[idx + 1];
+            if ((v0 < 0) != (v1 < 0)) {
               float lambda = v0 / (v0 - v1);
-              edge_indices[ki*dz + idx*3+0] = (int)vertices_.size();
-              vertices_.push_back(vertex_generator(fi + lambda, fj, fk));
+              if (lambda >= 0 && lambda <= 1) {
+                edge_indices[odd*dz + idx*3+0] = vertex_index++;
+                vertices_.push_back(vertex_generator(fi + lambda, fj, fk));
+              }
             }
           }
 
           // y edges
           if (j != ydim-1) {
-            float v1 = fn(i, j+1, k);
-            if (v0 * v1 <= 0) {
+            float v1 = val0[idx + xdim];
+            if ((v0 < 0) != (v1 < 0)) {
               float lambda = v0 / (v0 - v1);
-              edge_indices[ki*dz + idx*3+1] = (int)vertices_.size();
-              vertices_.push_back(vertex_generator(fi, fj + lambda, fk));
+              if (lambda >= 0 && lambda <= 1) {
+                edge_indices[odd*dz + idx*3+1] = vertex_index++;
+                vertices_.push_back(vertex_generator(fi, fj + lambda, fk));
+              }
             }
           }
 
           // z edges
           if (k != zdim-1) {
-            float v1 = fn(i, j, k+1);
-            if (v0 * v1 <= 0) {
+            float v1 = val1[idx];
+            if ((v0 < 0) != (v1 < 0)) {
               float lambda = v0 / (v0 - v1);
-              edge_indices[ki*dz + idx*3+2] = (int)vertices_.size();
-              vertices_.push_back(vertex_generator(fi, fj, fk + lambda));
+              if (lambda >= 0 && lambda <= 1) {
+                edge_indices[odd*dz + idx*3+2] = vertex_index++;
+                vertices_.push_back(vertex_generator(fi, fj, fk + lambda));
+              }
             }
           }
         }
@@ -309,39 +325,48 @@ public:
 
       // Build the indices. Use the mc_triangles table to choose triangles depending on sign.
       if (k != 0) {
+        int edge_offsets[16] = {
+          0 * dx + 0 * dy + even * dz + 0,  // 0,1, (this cube, x component)
+          1 * dx + 0 * dy + even * dz + 1,  // 1,2,
+          0 * dx + 1 * dy + even * dz + 0,  // 2,3,
+          0 * dx + 0 * dy + even * dz + 1,  // 3,0, (this cube, y component)
+          0 * dx + 0 * dy + odd  * dz + 0,  // 4,5,
+          1 * dx + 0 * dy + odd  * dz + 1,  // 5,6,
+          0 * dx + 1 * dy + odd  * dz + 0,  // 6,7,
+          0 * dx + 0 * dy + odd  * dz + 1,  // 7,4,
+          0 * dx + 0 * dy + even * dz + 2,  // 0,4, (this cube, z component)
+          1 * dx + 0 * dy + even * dz + 2,  // 1,5,
+          1 * dx + 1 * dy + even * dz + 2,  // 2,6,
+          0 * dx + 1 * dy + even * dz + 2,  // 3,7
+          0, 0, 0, 0
+        };
+
         for (int j = 0; j != ydim-1; ++j) {
           for (int i = 0; i != xdim-1; ++i) {
-            int idx = j * xdim + i;
-            float fi = (float)i;
-            float fj = (float)j;
-            float fk = (float)k;
-
             // Mask of vertices outside the isosurface (values are negative)
             // Example:
             //   00000001 means only vertex 0 is outside the surface.
             //   10000000 means only vertex 7 is outside the surface.
             //   11111111 all vertices are outside the surface.
             // todo: the mask can be built incrementally.
-            float v000 = fn(i, j, k-1);
-            float v100 = fn(i+1, j, k-1);
-            float v010 = fn(i, j+1, k-1);
-            float v110 = fn(i+1, j+1, k-1);
-            float v001 = fn(i, j, k);
-            float v101 = fn(i+1, j, k);
-            float v011 = fn(i, j+1, k);
-            float v111 = fn(i+1, j+1, k);
+            int idx = j * xdim + i;
+            float v000 = valm1[idx];
+            float v100 = valm1[idx + 1];
+            float v010 = valm1[idx + xdim];
+            float v110 = valm1[idx + xdim + 1];
+            float v001 = val0[idx];
+            float v101 = val0[idx + 1];
+            float v011 = val0[idx + xdim];
+            float v111 = val0[idx + xdim + 1];
 
-            int mask = (
-              (v000 < 0 ? 1 << 0 : 0) |
-              (v100 < 0 ? 1 << 1 : 0) |
-              (v110 < 0 ? 1 << 2 : 0) |
-              (v010 < 0 ? 1 << 3 : 0) |
-          
-              (v001 < 0 ? 1 << 4 : 0) |
-              (v101 < 0 ? 1 << 5 : 0) |
-              (v111 < 0 ? 1 << 6 : 0) |
-              (v011 < 0 ? 1 << 7 : 0)
-            );
+            int mask = (v011 < 0);
+            mask = mask * 2 + (v111 < 0);
+            mask = mask * 2 + (v101 < 0);
+            mask = mask * 2 + (v001 < 0);
+            mask = mask * 2 + (v010 < 0);
+            mask = mask * 2 + (v110 < 0);
+            mask = mask * 2 + (v100 < 0);
+            mask = mask * 2 + (v000 < 0);
 
             uint64_t triangles = mc_triangles()[mask];
             while ((triangles >> 60) != 0xc) {
@@ -364,6 +389,12 @@ public:
           }
         }
       }
+
+      // rotate value offsets
+      float *t = val0;
+      val0 = val1;
+      val1 = valm1;
+      valm1 = t;
     }
   }
 

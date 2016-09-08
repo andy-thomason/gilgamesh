@@ -6,7 +6,6 @@
 // surfaces for molecules.
 //
 
-
 #include <gilgamesh/mesh.hpp>
 #include <gilgamesh/decoders/pdb_decoder.hpp>
 #include <gilgamesh/encoders/fbx_encoder.hpp>
@@ -403,5 +402,4 @@ private:
     mesh = std::move(emesh);
   }
 };
-
 
