@@ -345,10 +345,10 @@ private:
         }
 
         for (int x = 0; x != xdim+1; ++x) {
-          glm::vec3 xyz(x * grid_spacing + min.x, ypos, zpos);
           float value = 1e37f;
           // only if we are inside the acessible mesh...
           if (accessible[idx(x, y, z)] < 0) {
+            glm::vec3 xyz(x * grid_spacing + min.x, ypos, zpos);
             // find the closest point on the accessible mesh to xyz.
             for (auto &r : ysorter) {
               float d2 = glm::dot(xyz - r, xyz - r);
