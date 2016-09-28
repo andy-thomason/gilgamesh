@@ -55,6 +55,8 @@ public:
         cmd = arg;
       } else if (!strcmp(arg, "bs")) {
         cmd = arg;
+      } else if (!strcmp(arg, "ca")) {
+        cmd = arg;
       } else {
         if (pdb_filename) { printf("only one file will be considered\n"); error = true; }
         pdb_filename = arg;
@@ -122,6 +124,9 @@ public:
     std::vector<float> radii;
     std::vector<glm::vec4> colors;
     std::vector<std::pair<int, int> > connections;
+    bool is_ca = !strcmp(cmd, "ca");
+    bool is_bs = !strcmp(cmd, "bs");
+    bool is_se = !strcmp(cmd, "se");
 
     auto atoms = pdb.atoms();
     int prevC = -1;
@@ -130,44 +135,48 @@ public:
     for (int idx = 0; idx != atoms.size(); ++idx) {
       auto &p = atoms[idx];
       char chainID = p.chainID();
+      // if the chain is in the set specified on the command line (eg. ACBD)
       if (expanded_chains.find(chainID) != std::string::npos) {
-        if (cmd[0] == 'b') {
-          colors.push_back(p.colorByElement());
-          if (p.resSeq() != prev_resSeq) {
-            int resSeq = p.resSeq(), j = 0;
-            prev_resSeq = resSeq;
-            for (j = idx; j != atoms.size(); ++j) {
-              if (atoms[j].resSeq() != resSeq) {
-                break;
+        // if we are not in CA only mode or we are in the set of CA atoms (C, N, CA)
+        if (!is_ca || p.atomNameIs(" C  ") || p.atomNameIs(" N  ") || p.atomNameIs(" CA ")) {
+          if (is_bs || is_ca) {
+            colors.push_back(p.colorByElement());
+            if (p.resSeq() != prev_resSeq) {
+              int resSeq = p.resSeq(), j = 0;
+              prev_resSeq = resSeq;
+              for (j = idx; j != atoms.size(); ++j) {
+                if (atoms[j].resSeq() != resSeq) {
+                  break;
+                }
               }
-            }
-            const auto *b = atoms.data() + idx;
-            const auto *e = atoms.data() + j;
+              const auto *b = atoms.data() + idx;
+              const auto *e = atoms.data() + j;
 
-            // At the start of every Amino Acid, connect the atoms.
-            int N_idx = int(pos.size());
-            int C_idx = gilgamesh::pdb_decoder::addImplicitConnections(connections, b, e, N_idx);
-            if (prevC != -1 && prevChainID == chainID) {
-              connections.emplace_back(prevC, N_idx);
+              // At the start of every Amino Acid, connect the atoms.
+              int N_idx = int(pos.size());
+              int C_idx = gilgamesh::pdb_decoder::addImplicitConnections(connections, b, e, N_idx, is_ca);
+              if (prevC != -1 && prevChainID == chainID) {
+                connections.emplace_back(prevC, N_idx);
+              }
+              prevC = C_idx;
+              prevChainID = chainID;
             }
-            prevC = C_idx;
-            prevChainID = chainID;
+          } else {
+            colors.push_back(p.colorByFunction());
           }
-        } else {
-          colors.push_back(p.colorByFunction());
+          pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+          radii.push_back(p.vanDerVaalsRadius());
         }
-        pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
-        radii.push_back(p.vanDerVaalsRadius());
       }
     }
 
     gilgamesh::color_mesh mesh;
 
-    if (!strcmp(cmd, "se")) {
+    if (is_se) {
       generate_solvent_excluded_mesh(mesh, pos, radii, colors, grid_spacing);
     }
 
-    if (!strcmp(cmd, "bs")) {
+    if (is_bs || is_ca) {
       generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections);
     }
 
@@ -198,7 +207,7 @@ private:
     glm::mat4 mat;
     for (size_t i = 0; i != pos.size(); ++i) {
       mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
-      gilgamesh::sphere s(0.20f);
+      gilgamesh::sphere s(0.40f);
       s.build(mesh, mat, colors[i], 5);
     }
 
@@ -212,22 +221,24 @@ private:
       glm::vec3 x = glm::normalize(glm::cross(y, up));
       glm::vec3 z = glm::cross(x, y);
       float len = glm::length(pos1 - pos0);
-      mat[0] = glm::vec4(x, 0);
-      mat[1] = glm::vec4(y, 0);
-      mat[2] = glm::vec4(z, 0);
-      /*if (len >= 3.0 || len <= 0.001f) {
-        printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
-      }*/
-      if (c0 == c1) {
-        gilgamesh::cylinder cyl(0.15f, len);
-        mat[3] = glm::vec4((pos0 + pos1) * 0.5f, 1);
-        cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
-      } else {
-        gilgamesh::cylinder cyl(0.15f, len * 0.5f);
-        mat[3] = glm::vec4(pos0 * 0.75f + pos1 * 0.25f, 1);
-        cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
-        mat[3] = glm::vec4(pos0 * 0.25f + pos1 * 0.75f, 1);
-        cyl.build(mesh, mat, colors[c.second], 1, 8, gilgamesh::cylinder::body);
+      if (len < 3.0f) {
+        mat[0] = glm::vec4(x, 0);
+        mat[1] = glm::vec4(y, 0);
+        mat[2] = glm::vec4(z, 0);
+        /*if (len >= 3.0 || len <= 0.001f) {
+          printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
+        }*/
+        if (c0 == c1) {
+          gilgamesh::cylinder cyl(0.25f, len);
+          mat[3] = glm::vec4((pos0 + pos1) * 0.5f, 1);
+          cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
+        } else {
+          gilgamesh::cylinder cyl(0.25f, len * 0.5f);
+          mat[3] = glm::vec4(pos0 * 0.75f + pos1 * 0.25f, 1);
+          cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
+          mat[3] = glm::vec4(pos0 * 0.25f + pos1 * 0.75f, 1);
+          cyl.build(mesh, mat, colors[c.second], 1, 8, gilgamesh::cylinder::body);
+        }
       }
     }
   }

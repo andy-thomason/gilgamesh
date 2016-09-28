@@ -91,182 +91,6 @@ namespace gilgamesh {
         }
       }
 
-      // for the start of an amino acid, add implicit connections 
-      void addImplicitConnections(std::vector<std::pair<int, int> > &result, int idx) const {
-
-        // backbone
-        int N = idx, CA = idx+1, C = idx+2, O = idx+3, CB = idx + 4;
-        result.emplace_back(N, CA);
-        result.emplace_back(CA, C);
-        result.emplace_back(CA, O);
-
-        if (!resNameIs("GLY")) {
-          result.emplace_back(CA, CB);
-        }
-
-        // I can't guarantee these are correct right now.
-        if (resNameIs("ASP")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int OD1 = CG + 1;
-          int OD2 = CG + 2;
-          result.emplace_back(CG, OD1);
-          result.emplace_back(CG, OD2);
-        } else if (resNameIs("ALA")) {
-        } else if (resNameIs("CYS")) {
-          int SG = idx + 4;
-          result.emplace_back(CB, SG);
-        } else if (resNameIs("GLU")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int CD = CG + 1;
-          result.emplace_back(CG, CD);
-          int OE1 = CD + 1;
-          int OE2 = CD + 2;
-          result.emplace_back(CD, OE1);
-          result.emplace_back(CD, OE2);
-        } else if (resNameIs("PHE")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int CD1 = CG + 1;
-          int CD2 = CG + 2;
-          result.emplace_back(CG, CD1);
-          result.emplace_back(CG, CD2);
-          int CE1 = CG + 3;
-          int CE2 = CG + 4;
-          result.emplace_back(CD1, CE1);
-          result.emplace_back(CD2, CE2);
-          int CZ = CG + 5;
-          result.emplace_back(CE1, CZ);
-          result.emplace_back(CE2, CZ);
-        } else if (resNameIs("GLY")) {
-        } else if (resNameIs("HIS")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int ND1 = CG + 1;
-          int CD2 = CG + 2;
-          result.emplace_back(CG, ND1);
-          result.emplace_back(CG, CD2);
-          int CE1 = CG + 3;
-          int NE2 = CG + 4;
-          result.emplace_back(ND1, CE1);
-          result.emplace_back(CD2, NE2);
-          result.emplace_back(CE1, NE2);
-        } else if (resNameIs("ILE")) {
-          int CG1 = CB + 1;
-          int CG2 = CB + 2;
-          result.emplace_back(CB, CG1);
-          result.emplace_back(CB, CG2);
-          result.emplace_back(CG1, CG2);
-        } else if (resNameIs("LYS")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int CD = CG + 1;
-          result.emplace_back(CG, CD);
-          int CE = CD + 1;
-          result.emplace_back(CD, CE);
-          int NZ = CE + 1;
-          result.emplace_back(CE, NZ);
-        } else if (resNameIs("LEU")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int CD1 = CG + 1;
-          int CD2 = CG + 2;
-          result.emplace_back(CG, CD1);
-          result.emplace_back(CG, CD2);
-        } else if (resNameIs("MET")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int SD = CG + 1;
-          result.emplace_back(CG, SD);
-          int CE = SD + 1;
-          result.emplace_back(SD, CE);
-        } else if (resNameIs("ASN")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int OD1 = CG + 1;
-          int ND2 = CG + 2;
-          result.emplace_back(CG, OD1);
-          result.emplace_back(CG, ND2);
-        } else if (resNameIs("PRO")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int CD = CG + 1;
-          result.emplace_back(CG, CD);
-        } else if (resNameIs("GLN")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int CD = CG + 1;
-          result.emplace_back(CG, CD);
-          int OE1 = CD + 1;
-          int NE2 = CD + 2;
-          result.emplace_back(CD, OE1);
-          result.emplace_back(CD, NE2);
-        } else if (resNameIs("ARG")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int CD = CG + 1;
-          result.emplace_back(CG, CD);
-          int NE = CD + 1;
-          result.emplace_back(CD, NE);
-          int CZ = NE + 1;
-          result.emplace_back(NE, CZ);
-          int NH1 = CZ + 1;
-          int NH2 = CZ + 2;
-          result.emplace_back(CZ, NH1);
-          result.emplace_back(CZ, NH2);
-        } else if (resNameIs("SER")) {
-          int OG = CB + 1;
-          result.emplace_back(CB, OG);
-        } else if (resNameIs("THR")) {
-          int OG1 = CB + 1;
-          int CG2 = CB + 2;
-          result.emplace_back(CB, OG1);
-          result.emplace_back(CB, CG2);
-        } else if (resNameIs("VAL")) {
-          int CG1 = CB + 1;
-          int CG2 = CB + 2;
-          result.emplace_back(CB, CG1);
-          result.emplace_back(CB, CG2);
-        } else if (resNameIs("TRP")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int CD1 = CG + 1;
-          int CD2 = CG + 2;
-          result.emplace_back(CG, CD1);
-          result.emplace_back(CG, CD2);
-          int NE1 = CG + 3;
-          int CE2 = CG + 4;
-          int CE3 = CG + 5;
-          result.emplace_back(CD1, NE1);
-          result.emplace_back(CD2, CE3);
-          result.emplace_back(NE1, CE2);
-          int CZ2 = CG + 5;
-          int CZ3 = CG + 6;
-          result.emplace_back(CE2, CZ2);
-          result.emplace_back(CE3, CZ3);
-          int CH2 = CG + 7;
-          result.emplace_back(CZ2, CH2);
-          result.emplace_back(CZ3, CH2);
-        } else if (resNameIs("TYR")) {
-          int CG = CB + 1;
-          result.emplace_back(CB, CG);
-          int CD1 = CG + 1;
-          int CD2 = CG + 2;
-          result.emplace_back(CG, CD1);
-          result.emplace_back(CG, CD2);
-          int CE1 = CG + 3;
-          int CE2 = CG + 4;
-          result.emplace_back(CD1, CE1);
-          result.emplace_back(CD2, CE2);
-          int CZ = CG + 5;
-          result.emplace_back(CE1, CZ);
-          result.emplace_back(CE2, CZ);
-          int OH = CZ + 1;
-          result.emplace_back(CZ, OH);
-        }
-      }
-
       glm::vec4 colorByElement() const {
         // https://en.wikipedia.org/wiki/CPK_coloring
 
@@ -381,7 +205,7 @@ namespace gilgamesh {
       return std::move(result);
     }
 
-    static int addImplicitConnections(std::vector<std::pair<int, int> > &out, const atom *atomb, const atom *atome, int N_idx) {
+    static int addImplicitConnections(std::vector<std::pair<int, int> > &out, const atom *atomb, const atom *atome, int N_idx, bool is_ca) {
       static const char table[][5] = {
         "ASP",
           " CB ", " CG ",
@@ -496,8 +320,13 @@ namespace gilgamesh {
 
       //printf("find %s N%d C%d O%d CA%d CB%d\n", atomb->resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
 
-      out.emplace_back(N_idx, C_idx);
-      if (CA_idx != -1) out.emplace_back(C_idx, CA_idx);
+      out.emplace_back(N_idx, CA_idx);
+
+      out.emplace_back(CA_idx, C_idx);
+
+      // if doing the backbone only, drop out now.
+      if (is_ca) return C_idx;
+
       if (CA_idx != -1 && CB_idx != -1) out.emplace_back(CA_idx, CB_idx);
       out.emplace_back(C_idx, O_idx);
 
