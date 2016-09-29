@@ -11,5 +11,6 @@ ENDIF(WIN32)
 
 include_directories(${PROJECT_SOURCE_DIR}/include/ ${PROJECT_SOURCE_DIR}/external/minizip/include/ ${PROJECT_SOURCE_DIR}/external/glm/)
 
+add_subdirectory(test)
 add_subdirectory(examples)
 
