@@ -205,7 +205,7 @@ namespace gilgamesh {
       return std::move(result);
     }
 
-    static int addImplicitConnections(std::vector<std::pair<int, int> > &out, const atom *atomb, const atom *atome, int N_idx, bool is_ca) {
+    int addImplicitConnections(std::vector<std::pair<int, int> > &out, size_t bidx, size_t eidx, int prevC) const {
       static const char table[][5] = {
         "ASP",
           " CB ", " CG ",
@@ -302,21 +302,15 @@ namespace gilgamesh {
         ""
       };
 
-      // find an atom relative to "N" in an amino acid.
-      auto find_atom = [atomb, atome, N_idx](const char *name) {
-        for (auto p = atomb; p != atome; ++p) {
-          if (p->atomNameIs(name)) {
-            return int(p - atomb) + N_idx;
-          }
-        }
-        return -1;
-      };
+      int N_idx = findAtom(bidx, eidx, " N  ");
+      int C_idx = findAtom(bidx, eidx, " C  ");
+      int O_idx = findAtom(bidx, eidx, " O  ");
+      int CA_idx = findAtom(bidx, eidx, " CA ");
+      int CB_idx = findAtom(bidx, eidx, " CB ");
 
-
-      int C_idx = find_atom(" C  ");
-      int O_idx = find_atom(" O  ");
-      int CA_idx = find_atom(" CA ");
-      int CB_idx = find_atom(" CB ");
+      if (prevC != -1) {
+        out.emplace_back(prevC, C_idx);
+      }
 
       //printf("find %s N%d C%d O%d CA%d CB%d\n", atomb->resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
 
@@ -324,20 +318,17 @@ namespace gilgamesh {
 
       out.emplace_back(CA_idx, C_idx);
 
-      // if doing the backbone only, drop out now.
-      if (is_ca) return C_idx;
-
-      if (CA_idx != -1 && CB_idx != -1) out.emplace_back(CA_idx, CB_idx);
+      if (CA_idx != eidx && CB_idx != eidx) out.emplace_back(CA_idx, CB_idx);
       out.emplace_back(C_idx, O_idx);
 
       for (size_t i = 0; table[i][0]; ++i) {
-        if (table[i][0] >= 'A' && atomb->resNameIs(table[i])) {
+        if (table[i][0] >= 'A' && atoms_[bidx].resNameIs(table[i])) {
           //printf("%s\n", table[i]);
           ++i;
           while (table[i][0] == ' ') {
             //printf("  %s %s\n", table[i], table[i+1]);
-            int from = find_atom(table[i]);
-            int to = find_atom(table[i+1]);
+            int from = findAtom(bidx, eidx, table[i]);
+            int to = findAtom(bidx, eidx, table[i+1]);
             i += 2;
             //printf("  %d..%d\n", from, to);
             out.emplace_back(from, to);
@@ -348,6 +339,27 @@ namespace gilgamesh {
       }
 
       return C_idx;
+    }
+
+    // return the index of the next resiude
+    size_t nextResidue(size_t bidx) const {
+      int resSeq = atoms_[bidx].resSeq();
+      size_t eidx = bidx + 1;
+      for (; eidx != atoms_.size(); ++eidx) {
+        if (atoms_[eidx].resSeq() != resSeq) {
+          break;
+        }
+      }
+      return eidx;
+    }
+
+    int findAtom(size_t bidx, size_t eidx, const char *name) const {
+      for (size_t i = bidx; i != eidx; ++i) {
+        if (atoms_[i].atomNameIs(name)) {
+          return (int)i;
+        }
+      }
+      return -1;
     }
 
   private:

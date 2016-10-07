@@ -129,41 +129,18 @@ public:
     bool is_se = !strcmp(cmd, "se");
 
     auto atoms = pdb.atoms();
-    int prevC = -1;
-    char prevChainID = '?';
-    int prev_resSeq = -1;
     for (int idx = 0; idx != atoms.size(); ++idx) {
       auto &p = atoms[idx];
       char chainID = p.chainID();
       // if the chain is in the set specified on the command line (eg. ACBD)
       if (expanded_chains.find(chainID) != std::string::npos) {
         // if we are not in CA only mode or we are in the set of CA atoms (C, N, CA)
-        if (!is_ca || p.atomNameIs(" C  ") || p.atomNameIs(" N  ") || p.atomNameIs(" CA ")) {
-          if (is_bs || is_ca) {
-            colors.push_back(p.colorByElement());
-            if (p.resSeq() != prev_resSeq) {
-              int resSeq = p.resSeq(), j = 0;
-              prev_resSeq = resSeq;
-              for (j = idx; j != atoms.size(); ++j) {
-                if (atoms[j].resSeq() != resSeq) {
-                  break;
-                }
-              }
-              const auto *b = atoms.data() + idx;
-              const auto *e = atoms.data() + j;
-
-              // At the start of every Amino Acid, connect the atoms.
-              int N_idx = int(pos.size());
-              int C_idx = gilgamesh::pdb_decoder::addImplicitConnections(connections, b, e, N_idx, is_ca);
-              if (prevC != -1 && prevChainID == chainID) {
-                connections.emplace_back(prevC, N_idx);
-              }
-              prevC = C_idx;
-              prevChainID = chainID;
-            }
-          } else {
-            colors.push_back(p.colorByFunction());
-          }
+        if (is_bs) {
+          colors.push_back(p.colorByElement());
+          pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+          radii.push_back(p.vanDerVaalsRadius());
+        } else if (is_se) {
+          colors.push_back(p.colorByFunction());
           pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
           radii.push_back(p.vanDerVaalsRadius());
         }
@@ -174,10 +151,39 @@ public:
 
     if (is_se) {
       generate_solvent_excluded_mesh(mesh, pos, radii, colors, grid_spacing);
-    }
+    } else if (is_bs) {
+      int prevC = -1;
+      char prevChainID = '?';
+      for (size_t bidx = 0; bidx != atoms.size(); ) {
+        auto &p = atoms[bidx];
+        char chainID = p.chainID();
+        size_t eidx = pdb.nextResidue(bidx);
 
-    if (is_bs || is_ca) {
+        if (expanded_chains.find(chainID) != std::string::npos) {
+          // At the start of every Amino Acid, connect the atoms.
+          if (prevChainID != chainID) prevC = -1;
+          int C_idx = pdb.addImplicitConnections(connections, bidx, eidx, prevC);
+          prevC = C_idx;
+          prevChainID = chainID;
+        }
+        bidx = eidx;
+      }
       generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections);
+    } else if (is_ca) {
+      std::vector<glm::vec3> ca_pos;
+      for (size_t bidx = 0; bidx != atoms.size(); ) {
+        auto &p = atoms[bidx];
+        char chainID = p.chainID();
+        size_t eidx = pdb.nextResidue(bidx);
+        if (expanded_chains.find(chainID) != std::string::npos) {
+          int CA_idx = pdb.findAtom(bidx, eidx, " CA ");
+          if (CA_idx != -1) {
+            auto &p = atoms[CA_idx];
+            ca_pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+          }
+        }
+        bidx = eidx;
+      }
     }
 
     const char *last_slash = pdb_filename;
