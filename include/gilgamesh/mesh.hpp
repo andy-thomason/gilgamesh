@@ -428,11 +428,7 @@ public:
           case 'f': {
             while (n--) {
               float value = *((float*&)sp)++;
-              #ifdef _WIN32
-                dp += ::sprintf_s(dp, ep-dp, "%f", value);
-              #else
-                dp += ::snprintf(dp, ep-dp, "%f", value);
-              #endif
+              dp += ::snprintf(dp, ep-dp, "%f", value);
               if (dp != ep && (fp[1].name || n)) { *dp++ = ','; }
             }
           } break;
