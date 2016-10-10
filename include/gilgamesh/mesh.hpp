@@ -428,11 +428,7 @@ public:
           case 'f': {
             while (n--) {
               float value = *((float*&)sp)++;
-              #ifdef _WIN32
-                dp += ::sprintf_s(dp, ep-dp, "%f", value);
-              #else
-                dp += ::snprintf(dp, ep-dp, "%f", value);
-              #endif
+              dp += ::snprintf(dp, ep-dp, "%f", value);
               if (dp != ep && (fp[1].name || n)) { *dp++ = ','; }
             }
           } break;
@@ -559,9 +555,9 @@ struct pos_mesh_traits {
     glm::vec4 color() const { return glm::vec4(1.0f); }
 
     vertex_t &pos(const glm::vec3 &value) { pos_ = value; return *this; }
-    vertex_t &normal(const glm::vec3 &value) {}
-    vertex_t &uv(const glm::vec2 &value) {}
-    vertex_t &color(const glm::vec4 &value) {}
+    vertex_t &normal(const glm::vec3 &value) { return *this; }
+    vertex_t &uv(const glm::vec2 &value) { return *this; }
+    vertex_t &color(const glm::vec4 &value) { return *this; }
   private:
     // The physical layout of these data are reflected in the result of getFormat()
     glm::vec3 pos_;
@@ -569,8 +565,8 @@ struct pos_mesh_traits {
 
   static const attribute *getFormat() {
     static const attribute format[] = {
-      "pos", 3, 'f',
-      nullptr, 0, '\0'
+      {"pos", 3, 'f'},
+      {nullptr, 0, '\0'}
     };
     return format;
   }
@@ -605,7 +601,7 @@ struct simple_mesh_traits {
     vertex_t &pos(const glm::vec3 &value) { pos_ = value; return *this; }
     vertex_t &normal(const glm::vec3 &value) { normal_ = value; return *this; }
     vertex_t &uv(const glm::vec2 &value) { uv_ = value; return *this; }
-    vertex_t &color(const glm::vec4 &value) {}
+    vertex_t &color(const glm::vec4 &value) { return *this; }
   private:
     // The physical layout of these data are reflected in the result of getFormat()
     glm::vec3 pos_;
@@ -615,10 +611,10 @@ struct simple_mesh_traits {
 
   static const attribute *getFormat() {
     static const attribute format[] = {
-      "pos", 3, 'f',
-      "normal", 3, 'f',
-      "uv", 2, 'f',
-      nullptr, 0, '\0'
+      {"pos", 3, 'f'},
+      {"normal", 3, 'f'},
+      {"uv", 2, 'f'},
+      {nullptr, 0, '\0'}
     };
     return format;
   }
@@ -666,11 +662,11 @@ struct color_mesh_traits {
 
   static const attribute *getFormat() {
     static const attribute format[] = {
-      "pos", 3, 'f',
-      "normal", 3, 'f',
-      "uv", 2, 'f',
-      "color", 4, 'f',
-      nullptr, 0, '\0'
+      {"pos", 3, 'f'},
+      {"normal", 3, 'f'},
+      {"uv", 2, 'f'},
+      {"color", 4, 'f'},
+      {nullptr, 0, '\0'}
     };
     return format;
   }
