@@ -205,7 +205,7 @@ namespace gilgamesh {
       return std::move(result);
     }
 
-    int addImplicitConnections(std::vector<std::pair<int, int> > &out, size_t bidx, size_t eidx, int prevC) const {
+    int addImplicitConnections(std::vector<std::pair<int, int> > &out, size_t bidx, size_t eidx, int prevC, int first_pos) const {
       static const char table[][5] = {
         "ASP",
           " CB ", " CG ",
@@ -302,24 +302,34 @@ namespace gilgamesh {
         ""
       };
 
+      // if we are filtering the chains, we must map bidx..eidx to first_pos..
+      int delta = (int)first_pos - (int)bidx;
+
       int N_idx = findAtom(bidx, eidx, " N  ");
       int C_idx = findAtom(bidx, eidx, " C  ");
       int O_idx = findAtom(bidx, eidx, " O  ");
       int CA_idx = findAtom(bidx, eidx, " CA ");
       int CB_idx = findAtom(bidx, eidx, " CB ");
 
-      if (prevC != -1) {
-        out.emplace_back(prevC, C_idx);
+      //printf("find %s N%d C%d O%d CA%d CB%d\n", atoms_[bidx].resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
+
+      if (N_idx == -1 || C_idx == -1 || O_idx == -1 || CA_idx == -1) {
+        printf("addImplicitConnections: bad %s\n", atoms_[bidx].resName().c_str());
+        return -1;
       }
 
-      //printf("find %s N%d C%d O%d CA%d CB%d\n", atomb->resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
+      if (prevC != -1) {
+        out.emplace_back(prevC + delta, C_idx + delta);
+      }
 
-      out.emplace_back(N_idx, CA_idx);
+      out.emplace_back(N_idx + delta, CA_idx + delta);
 
-      out.emplace_back(CA_idx, C_idx);
+      out.emplace_back(CA_idx + delta, C_idx + delta);
 
-      if (CA_idx != eidx && CB_idx != eidx) out.emplace_back(CA_idx, CB_idx);
-      out.emplace_back(C_idx, O_idx);
+      // All except GLY
+      if (CB_idx != -1) out.emplace_back(CA_idx + delta, CB_idx + delta);
+
+      out.emplace_back(C_idx + delta, O_idx + delta);
 
       for (size_t i = 0; table[i][0]; ++i) {
         if (table[i][0] >= 'A' && atoms_[bidx].resNameIs(table[i])) {
@@ -331,7 +341,7 @@ namespace gilgamesh {
             int to = findAtom(bidx, eidx, table[i+1]);
             i += 2;
             //printf("  %d..%d\n", from, to);
-            out.emplace_back(from, to);
+            out.emplace_back(from + delta, to + delta);
             //if (from == -1 || to == -1) printf("OUCH!\n");
           }
           break;

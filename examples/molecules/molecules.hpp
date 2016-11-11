@@ -136,9 +136,6 @@ public:
       if (expanded_chains.find(chainID) != std::string::npos) {
         // if we are not in CA only mode or we are in the set of CA atoms (C, N, CA)
         if (is_bs) {
-          colors.push_back(p.colorByElement());
-          pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
-          radii.push_back(p.vanDerVaalsRadius());
         } else if (is_se) {
           colors.push_back(p.colorByFunction());
           pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
@@ -155,14 +152,21 @@ public:
       int prevC = -1;
       char prevChainID = '?';
       for (size_t bidx = 0; bidx != atoms.size(); ) {
-        auto &p = atoms[bidx];
-        char chainID = p.chainID();
+        char chainID = atoms[bidx].chainID();
         size_t eidx = pdb.nextResidue(bidx);
 
         if (expanded_chains.find(chainID) != std::string::npos) {
+          size_t first_pos = pos.size();
+          for (size_t idx = bidx; idx != eidx; ++idx) {
+            auto &p = atoms[idx];
+            colors.push_back(p.colorByElement());
+            pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+            radii.push_back(p.vanDerVaalsRadius());
+          }
+
           // At the start of every Amino Acid, connect the atoms.
           if (prevChainID != chainID) prevC = -1;
-          int C_idx = pdb.addImplicitConnections(connections, bidx, eidx, prevC);
+          int C_idx = pdb.addImplicitConnections(connections, bidx, eidx, prevC, (int)first_pos);
           prevC = C_idx;
           prevChainID = chainID;
         }
@@ -215,9 +219,11 @@ private:
       mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
       gilgamesh::sphere s(0.40f);
       s.build(mesh, mat, colors[i], 5);
+      //printf("%f %f %f\n", colors[i].x, colors[i].y, colors[i].z);
     }
 
     for (auto &c : connections) {
+      //printf("%d %d / %d\n", c.first, c.second, (int)pos.size());
       glm::vec3 pos0 = pos[c.first];
       glm::vec3 pos1 = pos[c.second];
       glm::vec4 c0 = colors[c.first];
