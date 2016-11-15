@@ -327,13 +327,16 @@ namespace gilgamesh {
       out.emplace_back(CA_idx + delta, C_idx + delta);
 
       // All except GLY
-      if (CB_idx != -1) out.emplace_back(CA_idx + delta, CB_idx + delta);
+      if (CB_idx != -1) {
+        out.emplace_back(CA_idx + delta, CB_idx + delta);
+      }
 
       out.emplace_back(C_idx + delta, O_idx + delta);
 
       for (size_t i = 0; table[i][0]; ++i) {
         if (table[i][0] >= 'A' && atoms_[bidx].resNameIs(table[i])) {
           //printf("%s\n", table[i]);
+          const char *res_name = table[i];
           ++i;
           while (table[i][0] == ' ') {
             //printf("  %s %s\n", table[i], table[i+1]);
@@ -341,9 +344,13 @@ namespace gilgamesh {
             int to = findAtom(bidx, eidx, table[i+1]);
             i += 2;
             //printf("  %d..%d\n", from, to);
-            out.emplace_back(from + delta, to + delta);
-            //if (from == -1 || to == -1) printf("OUCH!\n");
-          }
+            if (from != -1 && to != -1) {
+              out.emplace_back(from + delta, to + delta);
+            } else {
+              int resSeq = atoms_[bidx].resSeq();
+              printf("Unexpected chemistry in %s/%d: %s %d   %s %d\n", res_name, resSeq, table[i-2], from, table[i-1], to);
+            }
+          }:q!
           break;
         }
       }
