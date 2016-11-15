@@ -9,6 +9,7 @@
 #include <gilgamesh/mesh.hpp>
 #include <gilgamesh/decoders/pdb_decoder.hpp>
 #include <gilgamesh/encoders/fbx_encoder.hpp>
+#include <gilgamesh/encoders/ply_encoder.hpp>
 #include <gilgamesh/shapes/sphere.hpp>
 #include <gilgamesh/shapes/cylinder.hpp>
 
@@ -35,6 +36,7 @@ public:
     bool list_chains = false;
     const char *chains = "A-Z";
     const char *cmd = "";
+    const char *format = "fbx";
 
     for (int i = 1; i != argc; ++i) {
       const char *arg = argv[i];
@@ -46,6 +48,10 @@ public:
         output_path = argv[++i];
       } else if (!strcmp(arg, "--help")) {
         error = true;
+      } else if (!strcmp(arg, "--fbx")) {
+        format = "fbx";
+      } else if (!strcmp(arg, "--ply")) {
+        format = "ply";
       } else if (!strcmp(arg, "--list-chains")) {
         list_chains = true;
       } else if (arg[0] == '-') {
@@ -96,7 +102,6 @@ public:
   
     gilgamesh::pdb_decoder pdb(text.data(), text.data() + text.size());
 
-    gilgamesh::fbx_encoder encoder;
     std::string pdb_chains = pdb.chains();
   
     if (list_chains) {
@@ -205,11 +210,16 @@ public:
     std::string stem;
     stem.assign(last_slash, last_dot);
 
-    const char *out_filename = fmt("%s_%s_%s_%s.fbx", stem.c_str(), expanded_chains.c_str(), cmd, lod_text);
+    const char *out_filename = fmt("%s_%s_%s_%s.%s", stem.c_str(), expanded_chains.c_str(), cmd, lod_text, format);
     printf("writing %s (%d vertices)\n", out_filename, int(mesh.vertices().size()));
-    std::ofstream eof(out_filename, std::ios::binary);
-    std::vector<uint8_t> bytes = encoder.saveMesh(mesh);
-    eof.write((char*)bytes.data(), bytes.size());
+
+    if (format[0] == 'p') {
+      gilgamesh::ply_encoder encoder;
+      encoder.saveMesh(mesh, out_filename, false, "pnuc");
+    } else {
+      gilgamesh::fbx_encoder encoder;
+      encoder.saveMesh(mesh, out_filename);
+    }
   }
 
 private:

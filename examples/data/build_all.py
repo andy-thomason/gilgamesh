@@ -1,4 +1,4 @@
-
+﻿
 # build molecules in examples.
 # takes one parameter: the path to the "molecules" executable.
 
@@ -42,19 +42,19 @@ chains = [
 """
 # thumbnail meshes
 for f, ch1, ch2, lod in chains:
-  ex = "%s %s se --chains %s%s --lod 0" % (sys.argv[1], pdbdir + '/' + f, ch1, ch2)
+  ex = "%s %s se --chains %s%s --ply --lod 0" % (sys.argv[1], pdbdir + '/' + f, ch1, ch2)
   print(ex)
   for line in os.popen(ex):
     print(line)
 
 # LOD 1 solvent excluded models
 for f, ch1, ch2, lod in chains:
-  ex = "%s %s se --chains %s --lod %d" % (sys.argv[1], pdbdir + '/' + f, ch1, lod)
+  ex = "%s %s se --chains %s --ply --lod %d" % (sys.argv[1], pdbdir + '/' + f, ch1, lod)
   print(ex)
   for line in os.popen(ex):
     print(line)
 
-  ex = "%s %s se --chains %s --lod %d" % (sys.argv[1], pdbdir + '/' + f, ch2, lod)
+  ex = "%s %s se --chains %s --ply --lod %d" % (sys.argv[1], pdbdir + '/' + f, ch2, lod)
   print(ex)
   for line in os.popen(ex):
     print(line)
@@ -62,22 +62,22 @@ for f, ch1, ch2, lod in chains:
 
 # ball and stick models
 for f, ch1, ch2, lod in chains:
-  ex = "%s %s bs --chains %s --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch1)
+  ex = "%s %s bs --chains %s --ply --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch1)
   print(ex)
   for line in os.popen(ex):
     print(line)
 
-  ex = "%s %s bs --chains %s --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch2)
+  ex = "%s %s bs --chains %s --ply --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch2)
   print(ex)
   for line in os.popen(ex):
     print(line)
 
-  """ex = "%s %s ca --chains %s --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch1)
+  """ex = "%s %s ca --chains %s --ply --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch1)
   print(ex)
   for line in os.popen(ex):
     print(line)
 
-  ex = "%s %s ca --chains %s --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch2)
+  ex = "%s %s ca --chains %s --ply --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch2)
   print(ex)
   for line in os.popen(ex):
     print(line)"""
