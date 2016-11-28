@@ -189,7 +189,20 @@ namespace gilgamesh {
       }
     }
 
-    const std::vector<atom> &atoms() const { return atoms_; }
+    // get atoms in a set of chains.
+    std::vector<atom> atoms(const std::string &chains) const {
+      std::vector<atom> result;
+      for (int idx = 0; idx != atoms_.size(); ++idx) {
+        auto &p = atoms_[idx];
+        char chainID = p.chainID();
+        // if the chain is in the set specified on the command line (eg. ACBD)
+        if (chains.find(chainID) != std::string::npos) {
+          result.push_back(p);
+        }
+      }
+      return std::move(result);
+    }
+
     const std::vector<atom> &hetAtoms() const { return hetAtoms_; }
 
     // return the set of chains used in this PDB file (ie. "ABCD")
@@ -205,7 +218,7 @@ namespace gilgamesh {
       return std::move(result);
     }
 
-    int addImplicitConnections(std::vector<std::pair<int, int> > &out, size_t bidx, size_t eidx, int prevC, int first_pos) const {
+    int addImplicitConnections(const std::vector<atom> &atoms, std::vector<std::pair<int, int> > &out, size_t bidx, size_t eidx, int prevC) const {
       static const char table[][5] = {
         "ASP",
           " CB ", " CG ",
@@ -238,7 +251,7 @@ namespace gilgamesh {
         "ILE",
           " CB ", " CG1",
           " CB ", " CG2",
-          " CG1", " CG2",
+          " CG1", " CD1",
         "LYS",
           " CB ", " CG ",
           " CG ", " CD ",
@@ -302,55 +315,54 @@ namespace gilgamesh {
         ""
       };
 
-      // if we are filtering the chains, we must map bidx..eidx to first_pos..
-      int delta = (int)first_pos - (int)bidx;
+      int N_idx = findAtom(atoms, bidx, eidx, " N  ");
+      int C_idx = findAtom(atoms, bidx, eidx, " C  ");
+      int O_idx = findAtom(atoms, bidx, eidx, " O  ");
+      int CA_idx = findAtom(atoms, bidx, eidx, " CA ");
+      int CB_idx = findAtom(atoms, bidx, eidx, " CB ");
 
-      int N_idx = findAtom(bidx, eidx, " N  ");
-      int C_idx = findAtom(bidx, eidx, " C  ");
-      int O_idx = findAtom(bidx, eidx, " O  ");
-      int CA_idx = findAtom(bidx, eidx, " CA ");
-      int CB_idx = findAtom(bidx, eidx, " CB ");
-
-      //printf("find %s N%d C%d O%d CA%d CB%d\n", atoms_[bidx].resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
+      //printf("find %s N%d C%d O%d CA%d CB%d\n", atoms[bidx].resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
 
       if (N_idx == -1 || C_idx == -1 || O_idx == -1 || CA_idx == -1) {
-        printf("addImplicitConnections: bad %s\n", atoms_[bidx].resName().c_str());
+        printf("addImplicitConnections: bad %s\n", atoms[bidx].resName().c_str());
         return -1;
       }
 
       if (prevC != -1) {
-        out.emplace_back(prevC + delta, C_idx + delta);
+        out.emplace_back(prevC, N_idx);
       }
 
-      out.emplace_back(N_idx + delta, CA_idx + delta);
+      out.emplace_back(N_idx, CA_idx);
 
-      out.emplace_back(CA_idx + delta, C_idx + delta);
+      out.emplace_back(CA_idx, C_idx);
+
+      //return C_idx;
 
       // All except GLY
       if (CB_idx != -1) {
-        out.emplace_back(CA_idx + delta, CB_idx + delta);
+        out.emplace_back(CA_idx, CB_idx);
       }
 
-      out.emplace_back(C_idx + delta, O_idx + delta);
+      out.emplace_back(C_idx, O_idx);
 
       for (size_t i = 0; table[i][0]; ++i) {
-        if (table[i][0] >= 'A' && atoms_[bidx].resNameIs(table[i])) {
+        if (table[i][0] >= 'A' && atoms[bidx].resNameIs(table[i])) {
           //printf("%s\n", table[i]);
           const char *res_name = table[i];
           ++i;
           while (table[i][0] == ' ') {
             //printf("  %s %s\n", table[i], table[i+1]);
-            int from = findAtom(bidx, eidx, table[i]);
-            int to = findAtom(bidx, eidx, table[i+1]);
+            int from = findAtom(atoms, bidx, eidx, table[i]);
+            int to = findAtom(atoms, bidx, eidx, table[i+1]);
             i += 2;
             //printf("  %d..%d\n", from, to);
             if (from != -1 && to != -1) {
-              out.emplace_back(from + delta, to + delta);
+              out.emplace_back(from, to);
             } else {
-              int resSeq = atoms_[bidx].resSeq();
+              int resSeq = atoms[bidx].resSeq();
               printf("Unexpected chemistry in %s/%d: %s %d   %s %d\n", res_name, resSeq, table[i-2], from, table[i-1], to);
             }
-          }:q!
+          }
           break;
         }
       }
@@ -359,20 +371,20 @@ namespace gilgamesh {
     }
 
     // return the index of the next resiude
-    size_t nextResidue(size_t bidx) const {
-      int resSeq = atoms_[bidx].resSeq();
+    size_t nextResidue(const std::vector<atom> &atoms, size_t bidx) const {
+      int resSeq = atoms[bidx].resSeq();
       size_t eidx = bidx + 1;
-      for (; eidx != atoms_.size(); ++eidx) {
-        if (atoms_[eidx].resSeq() != resSeq) {
+      for (; eidx != atoms.size(); ++eidx) {
+        if (atoms[eidx].resSeq() != resSeq) {
           break;
         }
       }
       return eidx;
     }
 
-    int findAtom(size_t bidx, size_t eidx, const char *name) const {
+    int findAtom(const std::vector<atom> &atoms, size_t bidx, size_t eidx, const char *name) const {
       for (size_t i = bidx; i != eidx; ++i) {
-        if (atoms_[i].atomNameIs(name)) {
+        if (atoms[i].atomNameIs(name)) {
           return (int)i;
         }
       }

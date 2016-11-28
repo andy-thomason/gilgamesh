@@ -133,66 +133,59 @@ public:
     bool is_bs = !strcmp(cmd, "bs");
     bool is_se = !strcmp(cmd, "se");
 
-    auto atoms = pdb.atoms();
-    for (int idx = 0; idx != atoms.size(); ++idx) {
-      auto &p = atoms[idx];
-      char chainID = p.chainID();
-      // if the chain is in the set specified on the command line (eg. ACBD)
-      if (expanded_chains.find(chainID) != std::string::npos) {
-        // if we are not in CA only mode or we are in the set of CA atoms (C, N, CA)
-        if (is_bs) {
-        } else if (is_se) {
-          colors.push_back(p.colorByFunction());
-          pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
-          radii.push_back(p.vanDerVaalsRadius());
-        }
-      }
-    }
+    auto atoms = pdb.atoms(expanded_chains);
 
     gilgamesh::color_mesh mesh;
 
     if (is_se) {
+      for (int idx = 0; idx != atoms.size(); ++idx) {
+        auto &p = atoms[idx];
+        colors.push_back(p.colorByFunction());
+        pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+        radii.push_back(p.vanDerVaalsRadius());
+      }
       generate_solvent_excluded_mesh(mesh, pos, radii, colors, grid_spacing);
     } else if (is_bs) {
+      for (int idx = 0; idx != atoms.size(); ++idx) {
+        auto &p = atoms[idx];
+        //if (atoms[idx].resSeq() > 20) break;
+        colors.push_back(p.colorByElement());
+        pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+        radii.push_back(p.vanDerVaalsRadius());
+      }
+
       int prevC = -1;
       char prevChainID = '?';
       for (size_t bidx = 0; bidx != atoms.size(); ) {
+        // At the start of every Amino Acid, connect the atoms.
         char chainID = atoms[bidx].chainID();
-        size_t eidx = pdb.nextResidue(bidx);
-
-        if (expanded_chains.find(chainID) != std::string::npos) {
-          size_t first_pos = pos.size();
-          for (size_t idx = bidx; idx != eidx; ++idx) {
-            auto &p = atoms[idx];
-            colors.push_back(p.colorByElement());
-            pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
-            radii.push_back(p.vanDerVaalsRadius());
-          }
-
-          // At the start of every Amino Acid, connect the atoms.
-          if (prevChainID != chainID) prevC = -1;
-          int C_idx = pdb.addImplicitConnections(connections, bidx, eidx, prevC, (int)first_pos);
-          prevC = C_idx;
-          prevChainID = chainID;
-        }
+        //if (atoms[bidx].resSeq() > 20) break;
+        size_t eidx = pdb.nextResidue(atoms, bidx);
+        if (prevChainID != chainID) prevC = -1;
+        prevC = pdb.addImplicitConnections(atoms, connections, bidx, eidx, prevC);
+        prevChainID = chainID;
         bidx = eidx;
       }
       generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections);
     } else if (is_ca) {
-      std::vector<glm::vec3> ca_pos;
+      char prevChainID = '?';
       for (size_t bidx = 0; bidx != atoms.size(); ) {
         auto &p = atoms[bidx];
         char chainID = p.chainID();
-        size_t eidx = pdb.nextResidue(bidx);
-        if (expanded_chains.find(chainID) != std::string::npos) {
-          int CA_idx = pdb.findAtom(bidx, eidx, " CA ");
-          if (CA_idx != -1) {
-            auto &p = atoms[CA_idx];
-            ca_pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
-          }
+        size_t eidx = pdb.nextResidue(atoms, bidx);
+        int CA_idx = pdb.findAtom(atoms, bidx, eidx, " CA ");
+        if (CA_idx != -1) {
+          auto &p = atoms[CA_idx];
+          pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+          colors.push_back(p.colorByElement());
+          radii.push_back(p.vanDerVaalsRadius());
+          if (prevChainID == chainID) connections.emplace_back((int)pos.size()-2, (int)pos.size()-1);
+          prevChainID = chainID;
         }
         bidx = eidx;
       }
+      printf("%d conn\n", (int)connections.size());
+      generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections);
     }
 
     const char *last_slash = pdb_filename;
@@ -243,7 +236,7 @@ private:
       glm::vec3 x = glm::normalize(glm::cross(y, up));
       glm::vec3 z = glm::cross(x, y);
       float len = glm::length(pos1 - pos0);
-      if (len < 3.0f) {
+      if (true) {
         mat[0] = glm::vec4(x, 0);
         mat[1] = glm::vec4(y, 0);
         mat[2] = glm::vec4(z, 0);
