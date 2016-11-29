@@ -39,7 +39,6 @@ chains = [
   ("4GRG.pdb", "ABC", "D", 2),
 ]
 
-"""
 # thumbnail meshes
 for f, ch1, ch2, lod in chains:
   ex = "%s %s se --chains %s%s --ply --lod 0" % (sys.argv[1], pdbdir + '/' + f, ch1, ch2)
@@ -58,7 +57,6 @@ for f, ch1, ch2, lod in chains:
   print(ex)
   for line in os.popen(ex):
     print(line)
-"""
 
 # ball and stick models
 for f, ch1, ch2, lod in chains:
@@ -72,7 +70,7 @@ for f, ch1, ch2, lod in chains:
   for line in os.popen(ex):
     print(line)
 
-  """ex = "%s %s ca --chains %s --ply --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch1)
+  ex = "%s %s ca --chains %s --ply --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch1)
   print(ex)
   for line in os.popen(ex):
     print(line)
@@ -80,5 +78,5 @@ for f, ch1, ch2, lod in chains:
   ex = "%s %s ca --chains %s --ply --lod 1" % (sys.argv[1], pdbdir + '/' + f, ch2)
   print(ex)
   for line in os.popen(ex):
-    print(line)"""
+    print(line)
 

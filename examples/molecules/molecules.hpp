@@ -7,6 +7,7 @@
 //
 
 #include <gilgamesh/mesh.hpp>
+#include <gilgamesh/distance_field.hpp>
 #include <gilgamesh/decoders/pdb_decoder.hpp>
 #include <gilgamesh/encoders/fbx_encoder.hpp>
 #include <gilgamesh/encoders/ply_encoder.hpp>

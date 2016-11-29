@@ -6,6 +6,9 @@
 // surfaces for molecules.
 //
 
+#ifndef GILGAMESH_UTILS_INCLUDED
+#define GILGAMESH_UTILS_INCLUDED
+
 
 #undef min
 
@@ -43,3 +46,5 @@ void par_for(int begin, int end, F fn) {
   printf("\n");
 }
 
+
+#endif
