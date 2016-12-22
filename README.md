@@ -12,7 +12,7 @@ git submodule init
 git submodule update
 ```
 
-This will import glm and minizip, required by this library.
+This will import glm and andyzip, required by this library.
 
 Once you have the code, you will need CMake to build it.
 

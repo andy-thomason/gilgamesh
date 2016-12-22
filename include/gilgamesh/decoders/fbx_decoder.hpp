@@ -17,7 +17,7 @@
 #include <vector>
 
 #include <gilgamesh/scene.hpp>
-#include <minizip/deflate_decoder.hpp>
+#include <andyzip/deflate_decoder.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -240,7 +240,7 @@ namespace gilgamesh {
       }
 
       template <class Type, char Kind>
-      bool getArray(std::vector<Type> &result, const minizip::deflate_decoder &decoder) const {
+      bool getArray(std::vector<Type> &result, const andyzip::deflate_decoder &decoder) const {
         Type *begin = nullptr;
         Type *end = nullptr;
         if (kind() == Kind) {
@@ -642,7 +642,7 @@ namespace gilgamesh {
     //std::vector<std::uint8_t> bytes;
     //scene the_scene;
 
-    minizip::deflate_decoder decoder_;
+    andyzip::deflate_decoder decoder_;
 
     size_t end_offset;
     const char *begin_;
