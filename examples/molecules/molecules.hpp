@@ -73,7 +73,7 @@ public:
     // at --lod 0, grid_spacing=1  at --lod 1, grid_spacing=0.5 etc.
     float grid_spacing = std::pow(2.0f, -float(atof(lod_text)));
 
-    if (pdb_filename == nullptr || error || !cmd[0]) {
+    if (pdb_filename == nullptr || error || (!cmd[0] && !list_chains)) {
       printf(
         "usage:\n"
         "molecules se <options> <pdb file name> ... generate a solvent excluded mesh\n\n"
@@ -146,13 +146,22 @@ public:
         radii.push_back(p.vanDerVaalsRadius());
       }
       generate_solvent_excluded_mesh(mesh, pos, radii, colors, grid_spacing);
-    } else if (is_bs) {
+    } else if (is_bs || is_ca) {
       for (int idx = 0; idx != atoms.size(); ++idx) {
         auto &p = atoms[idx];
-        //if (atoms[idx].resSeq() > 20) break;
         colors.push_back(p.colorByElement());
         pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
-        radii.push_back(p.vanDerVaalsRadius());
+        float r = p.vanDerVaalsRadius();
+        if (is_ca) {
+          if (p.atomNameIs(" N  ") || p.atomNameIs(" C  ") || p.atomNameIs(" O  ")) {
+            r = 0;
+          } else if (!p.atomNameIs(" CA ")) {
+            r *= 0.2f;
+          } else {
+            r *= 0.7f;
+          }
+        }
+        radii.push_back(r);
       }
 
       int prevC = -1;
@@ -160,32 +169,12 @@ public:
       for (size_t bidx = 0; bidx != atoms.size(); ) {
         // At the start of every Amino Acid, connect the atoms.
         char chainID = atoms[bidx].chainID();
-        //if (atoms[bidx].resSeq() > 20) break;
         size_t eidx = pdb.nextResidue(atoms, bidx);
         if (prevChainID != chainID) prevC = -1;
-        prevC = pdb.addImplicitConnections(atoms, connections, bidx, eidx, prevC);
+        prevC = pdb.addImplicitConnections(atoms, connections, bidx, eidx, prevC, is_ca);
         prevChainID = chainID;
         bidx = eidx;
       }
-      generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections);
-    } else if (is_ca) {
-      char prevChainID = '?';
-      for (size_t bidx = 0; bidx != atoms.size(); ) {
-        auto &p = atoms[bidx];
-        char chainID = p.chainID();
-        size_t eidx = pdb.nextResidue(atoms, bidx);
-        int CA_idx = pdb.findAtom(atoms, bidx, eidx, " CA ");
-        if (CA_idx != -1) {
-          auto &p = atoms[CA_idx];
-          pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
-          colors.push_back(p.colorByElement());
-          radii.push_back(p.vanDerVaalsRadius());
-          if (prevChainID == chainID) connections.emplace_back((int)pos.size()-2, (int)pos.size()-1);
-          prevChainID = chainID;
-        }
-        bidx = eidx;
-      }
-      printf("%d conn\n", (int)connections.size());
       generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections);
     }
 
@@ -220,10 +209,12 @@ private:
   void generate_ball_and_stick_mesh(gilgamesh::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, std::vector<std::pair<int, int> > &connections) {
     glm::mat4 mat;
     for (size_t i = 0; i != pos.size(); ++i) {
-      mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
-      gilgamesh::sphere s(0.40f);
-      s.build(mesh, mat, colors[i], 5);
-      //printf("%f %f %f\n", colors[i].x, colors[i].y, colors[i].z);
+      if (radii[i] != 0) {
+        mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
+        gilgamesh::sphere s(radii[i] * 0.40f);
+        int segments = (int)(radii[i] * 12);
+        s.build(mesh, mat, colors[i], segments);
+      }
     }
 
     for (auto &c : connections) {
@@ -244,16 +235,18 @@ private:
         /*if (len >= 3.0 || len <= 0.001f) {
           printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
         }*/
+        float r = std::min(radii[c.first], radii[c.second]) * 0.25f;
+        int segments = (int)(r * 80);
         if (c0 == c1) {
-          gilgamesh::cylinder cyl(0.25f, len);
+          gilgamesh::cylinder cyl(r, len);
           mat[3] = glm::vec4((pos0 + pos1) * 0.5f, 1);
-          cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
+          cyl.build(mesh, mat, colors[c.first], 1, segments, gilgamesh::cylinder::body);
         } else {
-          gilgamesh::cylinder cyl(0.25f, len * 0.5f);
+          gilgamesh::cylinder cyl(r, len * 0.5f);
           mat[3] = glm::vec4(pos0 * 0.75f + pos1 * 0.25f, 1);
-          cyl.build(mesh, mat, colors[c.first], 1, 8, gilgamesh::cylinder::body);
+          cyl.build(mesh, mat, colors[c.first], 1, segments, gilgamesh::cylinder::body);
           mat[3] = glm::vec4(pos0 * 0.25f + pos1 * 0.75f, 1);
-          cyl.build(mesh, mat, colors[c.second], 1, 8, gilgamesh::cylinder::body);
+          cyl.build(mesh, mat, colors[c.second], 1, segments, gilgamesh::cylinder::body);
         }
       }
     }

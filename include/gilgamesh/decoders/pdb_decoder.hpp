@@ -218,7 +218,7 @@ namespace gilgamesh {
       return std::move(result);
     }
 
-    int addImplicitConnections(const std::vector<atom> &atoms, std::vector<std::pair<int, int> > &out, size_t bidx, size_t eidx, int prevC) const {
+    int addImplicitConnections(const std::vector<atom> &atoms, std::vector<std::pair<int, int> > &out, size_t bidx, size_t eidx, int prevC, bool is_ca) const {
       static const char table[][5] = {
         "ASP",
           " CB ", " CG ",
@@ -328,13 +328,24 @@ namespace gilgamesh {
         return -1;
       }
 
-      if (prevC != -1) {
-        out.emplace_back(prevC, N_idx);
+      if (is_ca) {
+        if (prevC != -1) {
+          out.emplace_back(prevC, CA_idx);
+        }
+        prevC = CA_idx;
+      } else {
+        if (prevC != -1) {
+          out.emplace_back(prevC, N_idx);
+        }
+
+        out.emplace_back(N_idx, CA_idx);
+
+        out.emplace_back(CA_idx, C_idx);
+
+        out.emplace_back(C_idx, O_idx);
+
+        prevC = C_idx;
       }
-
-      out.emplace_back(N_idx, CA_idx);
-
-      out.emplace_back(CA_idx, C_idx);
 
       //return C_idx;
 
@@ -342,8 +353,6 @@ namespace gilgamesh {
       if (CB_idx != -1) {
         out.emplace_back(CA_idx, CB_idx);
       }
-
-      out.emplace_back(C_idx, O_idx);
 
       for (size_t i = 0; table[i][0]; ++i) {
         if (table[i][0] >= 'A' && atoms[bidx].resNameIs(table[i])) {
@@ -367,7 +376,7 @@ namespace gilgamesh {
         }
       }
 
-      return C_idx;
+      return prevC;
     }
 
     // return the index of the next resiude
