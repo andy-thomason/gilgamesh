@@ -162,7 +162,7 @@ public:
         if (p.atomNameIs(" CA ") || p.atomNameIs(" N  ") || p.atomNameIs(" C  ")) {
           r *= 0.2f;
         } else {
-          r *= 0.05f;
+          r *= 0.08f;
         }
 
         radii.push_back(r);
