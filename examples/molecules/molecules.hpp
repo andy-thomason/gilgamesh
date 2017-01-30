@@ -152,15 +152,19 @@ public:
         colors.push_back(p.colorByElement());
         pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
         float r = p.vanDerVaalsRadius();
+
         if (is_ca) {
           if (p.atomNameIs(" N  ") || p.atomNameIs(" C  ") || p.atomNameIs(" O  ")) {
             r = 0;
-          } else if (!p.atomNameIs(" CA ")) {
-            r *= 0.2f;
-          } else {
-            r *= 0.7f;
           }
         }
+
+        if (p.atomNameIs(" CA ") || p.atomNameIs(" N  ") || p.atomNameIs(" C  ")) {
+          r *= 0.2f;
+        } else {
+          r *= 0.05f;
+        }
+
         radii.push_back(r);
       }
 
@@ -211,8 +215,8 @@ private:
     for (size_t i = 0; i != pos.size(); ++i) {
       if (radii[i] != 0) {
         mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
-        gilgamesh::sphere s(radii[i] * 0.40f);
-        int segments = (int)(radii[i] * 12);
+        gilgamesh::sphere s(radii[i]);
+        int segments = 5;
         s.build(mesh, mat, colors[i], segments);
       }
     }
@@ -228,15 +232,15 @@ private:
       glm::vec3 x = glm::normalize(glm::cross(y, up));
       glm::vec3 z = glm::cross(x, y);
       float len = glm::length(pos1 - pos0);
-      if (true) {
+      if (len < 5) {
         mat[0] = glm::vec4(x, 0);
         mat[1] = glm::vec4(y, 0);
         mat[2] = glm::vec4(z, 0);
         /*if (len >= 3.0 || len <= 0.001f) {
           printf("%d %d %f %f %f  %f %f %f %f\n", c.first, c.second, pos0.x, pos0.y, pos0.z, mat[3].x, mat[3].y, mat[3].z, len);
         }*/
-        float r = std::min(radii[c.first], radii[c.second]) * 0.25f;
-        int segments = (int)(r * 80);
+        float r = std::min(radii[c.first], radii[c.second]) * 0.5f;
+        int segments = 5;
         if (c0 == c1) {
           gilgamesh::cylinder cyl(r, len);
           mat[3] = glm::vec4((pos0 + pos1) * 0.5f, 1);
