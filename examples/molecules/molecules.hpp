@@ -153,6 +153,21 @@ public:
         pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
         float r = p.vanDerVaalsRadius();
 
+        // Skip atoms in alternate amino acids.
+        if (p.iCode() != ' ') {
+          r = 0;
+        }
+
+        // Skip 'B' alternate atoms or above
+        if (p.altLoc() >= 'B') {
+          r = 0;
+        }
+
+        // Ignore terminal oxygens and any Hydrogens
+        if (p.atomNameIs(" OXT") || p.isHydrogen()) {
+          r = 0;
+        }
+
         if (is_ca) {
           if (p.atomNameIs(" N  ") || p.atomNameIs(" C  ") || p.atomNameIs(" O  ")) {
             r = 0;
@@ -173,12 +188,28 @@ public:
       for (size_t bidx = 0; bidx != atoms.size(); ) {
         // At the start of every Amino Acid, connect the atoms.
         char chainID = atoms[bidx].chainID();
+        char iCode = atoms[bidx].iCode();
         size_t eidx = pdb.nextResidue(atoms, bidx);
         if (prevChainID != chainID) prevC = -1;
-        prevC = pdb.addImplicitConnections(atoms, connections, bidx, eidx, prevC, is_ca);
-        prevChainID = chainID;
+
+        // iCode is 'A' etc. for alternates.
+        if (iCode == ' ') {
+          prevC = pdb.addImplicitConnections(atoms, connections, bidx, eidx, prevC, is_ca);
+          prevChainID = chainID;
+        }
         bidx = eidx;
       }
+
+      for (size_t i = 0; i != pos.size(); ++i) {
+        bool found = false;
+        for (size_t j = 0; j != connections.size() && !found; ++j) {
+          found = connections[j].first == i || connections[j].second == i;
+        }
+        if (!found && radii[i] != 0) {
+          printf("atom %d %s %s not connected\n", atoms[i].serial(), atoms[i].resName().c_str(), atoms[i].atomName().c_str());
+        }
+      }
+
       generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections);
     }
 

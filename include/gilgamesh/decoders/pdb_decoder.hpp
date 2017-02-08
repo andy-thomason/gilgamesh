@@ -64,6 +64,7 @@ namespace gilgamesh {
 
       bool resNameIs(const char *name) const { return p_[17] == name[0] && p_[18] == name[1] && p_[19] == name[2]; }
       bool atomNameIs(const char *name) const { return p_[12] == name[0] && p_[13] == name[1] && p_[14] == name[2] && p_[15] == name[3]; }
+      bool isHydrogen() const { return p_[12] == 'H' || p_[13] == 'H'; }
       bool elementIs(const char *name) const { return p_[76] == name[0] && p_[77] == name[1]; }
       bool chargeIs(const char *name) const { return p_[78] == name[0] && p_[79] == name[1]; }
 
@@ -323,8 +324,8 @@ namespace gilgamesh {
 
       //printf("find %s N%d C%d O%d CA%d CB%d\n", atoms[bidx].resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
 
-      if (N_idx == -1 || C_idx == -1 || O_idx == -1 || CA_idx == -1) {
-        printf("addImplicitConnections: bad %s\n", atoms[bidx].resName().c_str());
+      if (N_idx == -1 || C_idx == -1 || CA_idx == -1) {
+        printf("addImplicitConnections: bad %s N%d C%d O%d CA%d CB%d\n", atoms[bidx].resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
         return -1;
       }
 
@@ -342,7 +343,7 @@ namespace gilgamesh {
 
         out.emplace_back(CA_idx, C_idx);
 
-        out.emplace_back(C_idx, O_idx);
+        if (O_idx != -1) out.emplace_back(C_idx, O_idx);
 
         prevC = C_idx;
       }
@@ -382,9 +383,11 @@ namespace gilgamesh {
     // return the index of the next resiude
     size_t nextResidue(const std::vector<atom> &atoms, size_t bidx) const {
       int resSeq = atoms[bidx].resSeq();
+      char iCode = atoms[bidx].iCode();
+      //printf("%d rs=%d ic=%c\n", atoms[bidx].serial(), resSeq, iCode);
       size_t eidx = bidx + 1;
       for (; eidx != atoms.size(); ++eidx) {
-        if (atoms[eidx].resSeq() != resSeq) {
+        if (atoms[eidx].resSeq() != resSeq || atoms[eidx].iCode() != iCode) {
           break;
         }
       }
@@ -407,9 +410,11 @@ namespace gilgamesh {
 
     static int atoi(const uint8_t *b, const uint8_t *e) {
       while (b != e && *b == ' ') ++b;
+      int s = b != e && *b == '-' ? -1 : 1;
+      b += s == -1;
       int n = 0;
       while (b != e && *b >= '0' && *b <= '9') n = n * 10 + *b++ - '0';
-      return n;
+      return s * n;
     }
 
     static float atof(const uint8_t *b, const uint8_t *e) {
