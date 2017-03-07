@@ -296,8 +296,10 @@ private:
     std::vector<colored_atom> colored_atoms;
 
     glm::vec4 white(1, 1, 1, 1);
+    glm::vec4 red(1, 0, 0, 1);
+    glm::vec4 blue(0, 0, 1, 1);
     for (size_t i = 0; i != colors.size(); ++i) {
-      if (colors[i] != white) {
+      if (colors[i] == red || colors[i] == blue) {
         colored_atom a = { colors[i], pos[i], radii[i] };
         colored_atoms.push_back(a);
       }
@@ -431,22 +433,33 @@ private:
       glm::vec3 normal(1, 0, 0);
       glm::vec2 uv(0, 0);
       glm::vec4 color = glm::vec4(1, 1, 1, 1);
-      int num_influences = 1;
+
+      bool qq = false;
+      float tot = 1;
       for (size_t i = 0; i != colored_atoms.size(); ++i) {
         glm::vec3 &pos = colored_atoms[i].pos;
         float r = colored_atoms[i].radius;
+        float r2 = r * r;
         float d2 = glm::dot(xyz - pos, xyz - pos);
-        float weight = (r*r*4 - d2) * 1.0f;
-        if (weight > 0) {
-          weight = std::max(0.0f, std::min(weight, 1.0f));
+        float e0 = r2 * 16;
+        if (d2 < e0) {
+          qq = true;
+          float e1 = r2 * 4;
+          float v = std::min(std::max((d2 - e0)/(e1 - e0), 0.0f), 1.0f);
+          float weight = v * v * (3 - 2 * v);
           color += colored_atoms[i].color * weight;
-          num_influences++;
+          tot += weight;
+          //printf("%f %f %f %f\n", colored_atoms[i].color.x, colored_atoms[i].color.y, colored_atoms[i].color.z, weight);
+          //printf("%f %f %f\n", color.x, color.y, color.z);
         }
       }
-      color.w = 1;
-      color.x *= (1.0f/num_influences);
-      color.y *= (1.0f/num_influences);
-      color.z *= (1.0f/num_influences);
+
+      color /= tot;
+
+      color.x = std::min(std::max(color.x, 0.0f), 1.0f);
+      color.y = std::min(std::max(color.y, 0.0f), 1.0f);
+      color.z = std::min(std::max(color.z, 0.0f), 1.0f);
+
       return gilgamesh::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 
