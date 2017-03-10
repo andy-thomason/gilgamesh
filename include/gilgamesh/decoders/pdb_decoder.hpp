@@ -191,14 +191,21 @@ namespace gilgamesh {
     }
 
     // get atoms in a set of chains.
-    std::vector<atom> atoms(const std::string &chains) const {
+    std::vector<atom> atoms(const std::string &chains, bool invert=false) const {
       std::vector<atom> result;
       for (int idx = 0; idx != atoms_.size(); ++idx) {
         auto &p = atoms_[idx];
         char chainID = p.chainID();
-        // if the chain is in the set specified on the command line (eg. ACBD)
-        if (chains.find(chainID) != std::string::npos) {
-          result.push_back(p);
+        if (!invert) {
+          // if the chain is in the set specified on the command line (eg. ACBD)
+          if (chains.find(chainID) != std::string::npos) {
+            result.push_back(p);
+          }
+        } else {
+          // if the chain is not in the set specified on the command line (eg. ACBD)
+          if (chains.find(chainID) == std::string::npos) {
+            result.push_back(p);
+          }
         }
       }
       return std::move(result);

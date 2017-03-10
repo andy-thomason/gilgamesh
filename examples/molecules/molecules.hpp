@@ -64,6 +64,8 @@ public:
         cmd = arg;
       } else if (!strcmp(arg, "ca")) {
         cmd = arg;
+      } else if (!strcmp(arg, "vr")) {
+        cmd = arg;
       } else {
         if (pdb_filename) { printf("only one file will be considered\n"); error = true; }
         pdb_filename = arg;
@@ -133,19 +135,31 @@ public:
     bool is_ca = !strcmp(cmd, "ca");
     bool is_bs = !strcmp(cmd, "bs");
     bool is_se = !strcmp(cmd, "se");
+    bool is_vr = !strcmp(cmd, "vr");
 
     auto atoms = pdb.atoms(expanded_chains);
 
     gilgamesh::color_mesh mesh;
 
-    if (is_se) {
+    std::vector<glm::vec3> other_pos;
+    if (is_vr) {
+      // in the VR version, we colour the contact map and so need the
+      // positions of the other atoms not in this chain.
+      auto other_atoms = pdb.atoms(expanded_chains, true);
+      for (int idx = 0; idx != other_atoms.size(); ++idx) {
+        auto &p = atoms[idx];
+        other_pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+      }
+    }
+
+    if (is_se || is_vr) {
       for (int idx = 0; idx != atoms.size(); ++idx) {
         auto &p = atoms[idx];
         colors.push_back(p.colorByFunction());
         pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
         radii.push_back(p.vanDerVaalsRadius());
       }
-      generate_solvent_excluded_mesh(mesh, pos, radii, colors, grid_spacing);
+      generate_solvent_excluded_mesh(mesh, pos, radii, colors, other_pos, grid_spacing, is_vr);
     } else if (is_bs || is_ca) {
       for (int idx = 0; idx != atoms.size(); ++idx) {
         auto &p = atoms[idx];
@@ -287,7 +301,7 @@ private:
     }
   }
 
-  void generate_solvent_excluded_mesh(gilgamesh::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, float grid_spacing) {
+  void generate_solvent_excluded_mesh(gilgamesh::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, std::vector<glm::vec3> &other_pos, float grid_spacing, bool is_vr) {
     struct colored_atom {
       glm::vec4 color;
       glm::vec3 pos;
@@ -463,11 +477,37 @@ private:
       return gilgamesh::color_mesh::vertex_t(xyz, normal, uv, color);
     };
 
-    // construct the excluded mesh using marching cubes
-    gilgamesh::color_mesh emesh(xdim, ydim, zdim, efn, egen);
+    auto vr_egen = [&excluded, &other_pos, grid_spacing, min, idx](float x, float y, float z) {
+      glm::vec3 xyz(x * grid_spacing + min.x, y * grid_spacing + min.y, z * grid_spacing + min.z);
+      glm::vec3 normal(1, 0, 0);
+      glm::vec2 uv(0, 0);
+      glm::vec4 color = glm::vec4(1, 1, 1, 1);
 
-    // use move operator to shallow copy the mesh.
-    mesh = std::move(emesh);
+      auto low = std::lower_bound(other_pos.begin(), other_pos.end(), x - 4, [](const glm::vec3 &a, float value) { return a.x < value; });
+      auto high = std::upper_bound(other_pos.begin(), other_pos.end(), x + 4, [](float value, const glm::vec3 &a) { return value < a.x; });
+      printf("%f %f %f %d %d\n", x, y, z, (int)(low - other_pos.begin()), (int)(high - other_pos.begin()));
+
+      glm::vec3 pos(x, y, z);
+      for (auto p = low; p != high; ++p) {
+        glm::vec3 d = *p - pos;
+        float d2 = glm::dot(d, d);
+        printf("  %f %f %f %f\n", p->x, p->y, p->z, d2);
+        if (d2 < 16) {
+          color = glm::vec4(0.5f, 0.5f, 0.5f, 1);
+          printf("hooray!\n");
+        }
+      }
+
+      return gilgamesh::color_mesh::vertex_t(xyz, normal, uv, color);
+    };
+
+    // construct the excluded mesh using marching cubes
+    if (is_vr) {
+      std::sort(other_pos.begin(), other_pos.end(), [](const glm::vec3 &a, const glm::vec3 &b) { return a.x < b.x; });
+      mesh = gilgamesh::color_mesh(xdim, ydim, zdim, efn, vr_egen);
+    } else {
+      mesh = gilgamesh::color_mesh(xdim, ydim, zdim, efn, egen);
+    }
   }
 };
 
