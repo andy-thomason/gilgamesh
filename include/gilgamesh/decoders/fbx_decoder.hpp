@@ -27,7 +27,7 @@
 namespace gilgamesh {
 
   class fbx_decoder {
-    enum { debug = 1 };
+    enum { debug = 0 };
 
   public:
     fbx_decoder() {
