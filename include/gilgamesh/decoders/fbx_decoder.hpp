@@ -422,8 +422,6 @@ namespace gilgamesh {
                 }
               }
 
-              for (auto i : indices) printf("i%d ", (int)i); printf("\n");
-
               MeshType *mesh = new MeshType(pos, normal, uv, color, indices);
               scene.addMesh(mesh);
             } else if (obj.name_is("Model")) {
