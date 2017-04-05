@@ -35,7 +35,8 @@ public:
     const char *lod_text = "0";
     bool error = false;
     bool list_chains = false;
-    const char *chains = "A-Z";
+    bool use_hetatoms = false;
+    const char *chains = "A-Za-z";
     const char *cmd = "";
     const char *format = "fbx";
 
@@ -53,6 +54,8 @@ public:
         format = "fbx";
       } else if (!strcmp(arg, "--ply")) {
         format = "ply";
+      } else if (!strcmp(arg, "--use-hetatoms")) {
+        use_hetatoms = true;
       } else if (!strcmp(arg, "--list-chains")) {
         list_chains = true;
       } else if (arg[0] == '-') {
@@ -70,8 +73,10 @@ public:
       }
     }
 
+
     // at --lod 0, grid_spacing=1  at --lod 1, grid_spacing=0.5 etc.
-    float grid_spacing = std::pow(2.0f, -float(atof(lod_text)));
+    float lod = atof(lod_text);
+    float grid_spacing = std::pow(2.0f, -lod);
 
     if (pdb_filename == nullptr || error || (!cmd[0] && !list_chains)) {
       printf(
@@ -83,6 +88,7 @@ public:
         "--lod <n>\tLevel of detail. 0=lowest, 1=medium, 2=highest. This is logarthmic.\n"
         "--chains <n>\teg. A-E or ABDEG set of chains to use for generating FBX files. defaults to A-Z...\n"
         "--list-chains <n>\tjust list the chains in the PDB file\n"
+        "--use-hetatoms\tInclude HETATM atoms\n"
         "--output-path <dir>\tdirectory to output files to\n"
         "--help <n>\tshow this text\n"
       ); return;
@@ -103,7 +109,7 @@ public:
   
     gilgamesh::pdb_decoder pdb(text.data(), text.data() + text.size());
 
-    std::string pdb_chains = pdb.chains();
+    std::string pdb_chains = pdb.chains(use_hetatoms);
   
     if (list_chains) {
       printf("chains: %s\n", pdb_chains.c_str());
@@ -124,7 +130,7 @@ public:
       }
     }
 
-    printf("chains %s\n", expanded_chains.c_str());
+    printf("using chains %s\n", expanded_chains.c_str());
 
     std::vector<glm::vec3> pos;
     std::vector<float> radii;
@@ -134,7 +140,7 @@ public:
     bool is_bs = !strcmp(cmd, "bs");
     bool is_se = !strcmp(cmd, "se");
 
-    auto atoms = pdb.atoms(expanded_chains);
+    auto atoms = pdb.atoms(expanded_chains, use_hetatoms);
 
     gilgamesh::color_mesh mesh;
 
@@ -153,31 +159,33 @@ public:
         pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
         float r = p.vanDerVaalsRadius();
 
-        // Skip atoms in alternate amino acids.
-        if (p.iCode() != ' ') {
-          r = 0;
-        }
-
-        // Skip 'B' alternate atoms or above
-        if (p.altLoc() >= 'B') {
-          r = 0;
-        }
-
-        // Ignore terminal oxygens and any Hydrogens
-        if (p.atomNameIs(" OXT") || p.isHydrogen()) {
-          r = 0;
-        }
-
-        if (is_ca) {
-          if (p.atomNameIs(" N  ") || p.atomNameIs(" C  ") || p.atomNameIs(" O  ")) {
+        if (!p.is_hetatom()) {
+          // Skip atoms in alternate amino acids.
+          if (p.iCode() != ' ') {
             r = 0;
           }
-        }
 
-        if (p.atomNameIs(" CA ") || p.atomNameIs(" N  ") || p.atomNameIs(" C  ")) {
-          r *= 0.2f;
-        } else {
-          r *= 0.08f;
+          // Skip 'B' alternate atoms or above
+          if (p.altLoc() >= 'B') {
+            r = 0;
+          }
+
+          // Ignore terminal oxygens and any Hydrogens
+          if (p.atomNameIs(" OXT") || p.isHydrogen()) {
+            r = 0;
+          }
+
+          if (is_ca) {
+            if (p.atomNameIs(" N  ") || p.atomNameIs(" C  ") || p.atomNameIs(" O  ")) {
+              r = 0;
+            }
+          }
+
+          if (p.atomNameIs(" CA ") || p.atomNameIs(" N  ") || p.atomNameIs(" C  ")) {
+            r *= 0.2f;
+          } else {
+            r *= 0.08f;
+          }
         }
 
         radii.push_back(r);
@@ -210,7 +218,7 @@ public:
         }
       }
 
-      generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections);
+      generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections, lod);
     }
 
     const char *last_slash = pdb_filename;
@@ -241,13 +249,13 @@ public:
   }
 
 private:
-  void generate_ball_and_stick_mesh(gilgamesh::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, std::vector<std::pair<int, int> > &connections) {
+  void generate_ball_and_stick_mesh(gilgamesh::color_mesh &mesh, std::vector<glm::vec3> &pos, std::vector<float> &radii, std::vector<glm::vec4> &colors, std::vector<std::pair<int, int> > &connections,float lod) {
     glm::mat4 mat;
     for (size_t i = 0; i != pos.size(); ++i) {
       if (radii[i] != 0) {
         mat[3].x = pos[i].x; mat[3].y = pos[i].y; mat[3].z = pos[i].z;
         gilgamesh::sphere s(radii[i]);
-        int segments = 5;
+        int segments = int(5 + lod * 4);
         s.build(mesh, mat, colors[i], segments);
       }
     }
