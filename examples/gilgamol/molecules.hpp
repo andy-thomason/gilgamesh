@@ -13,6 +13,7 @@
 #include <gilgamesh/encoders/ply_encoder.hpp>
 #include <gilgamesh/shapes/sphere.hpp>
 #include <gilgamesh/shapes/cylinder.hpp>
+#include <gilgamesh/shapes/spline.hpp>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -67,6 +68,8 @@ public:
         cmd = arg;
       } else if (!strcmp(arg, "ca")) {
         cmd = arg;
+      } else if (!strcmp(arg, "capsule")) {
+        cmd = arg;
       } else {
         if (pdb_filename) { printf("only one file will be considered\n"); error = true; }
         pdb_filename = arg;
@@ -75,7 +78,7 @@ public:
 
 
     // at --lod 0, grid_spacing=1  at --lod 1, grid_spacing=0.5 etc.
-    float lod = atof(lod_text);
+    float lod = (float)atof(lod_text);
     float grid_spacing = std::pow(2.0f, -lod);
 
     if (pdb_filename == nullptr || error || (!cmd[0] && !list_chains)) {
@@ -139,6 +142,7 @@ public:
     bool is_ca = !strcmp(cmd, "ca");
     bool is_bs = !strcmp(cmd, "bs");
     bool is_se = !strcmp(cmd, "se");
+    bool is_capsule = !strcmp(cmd, "capsule");
 
     auto atoms = pdb.atoms(expanded_chains, use_hetatoms);
 
@@ -219,6 +223,12 @@ public:
       }
 
       generate_ball_and_stick_mesh(mesh, pos, radii, colors, connections, lod);
+    } else if (is_capsule) {
+      for (int idx = 0; idx != atoms.size(); ++idx) {
+        auto &p = atoms[idx];
+        pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
+      }
+      generate_capsule_mesh(mesh, pos);
     }
 
     const char *last_slash = pdb_filename;
@@ -476,6 +486,20 @@ private:
 
     // use move operator to shallow copy the mesh.
     mesh = std::move(emesh);
+  }
+
+  void generate_capsule_mesh(gilgamesh::mesh &mesh, const std::vector<glm::vec3> &pos) {
+    gilgamesh::Spline spline(pos, gilgamesh::SplineType::CatmullRom);
+
+    gilgamesh::simple_mesh splinePoints;
+    spline.build(splinePoints);
+
+    gligamesh::Circle circle(1.0f);
+    gilgamesh::simple_mesh circlePoints;
+    circle.build(circlePoints);
+
+    gilgamesh::Loft loft(splinePoints.pos(), splinePoints.uvs(), circlePoints.pos(), circlePoints.uvs());
+    circle.build(mesh);
   }
 };
 
