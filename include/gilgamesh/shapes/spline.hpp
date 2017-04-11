@@ -21,14 +21,14 @@ enum class SplineType {
   //Bezier,
 };
 
-/// A spline of various kinds.
-/// For a closed spline, you will need to replicate control points at the start and end.
+/// An indexed spline of various kinds.
+/// For a closed spline, you will need to replicate control points at the start and end using the indices.
 class Spline {
 public:
   Spline() {
   }
 
-  Spline(const std::vector<glm::vec3> &controlPoints, SplineType splineType) : controlPoints_(controlPoints) {
+  Spline(const std::vector<glm::vec3> &controlPoints, const std::vector<uint32_t> &indices, SplineType splineType) : controlPoints_(controlPoints), indices_(indices) {
     switch (splineType) {
       case SplineType::CatmullRom: {
         // http://www.mvps.org/directx/articles/catmull/
@@ -54,7 +54,7 @@ public:
 
     size_t firstIndex = mesh.vertices().size();
 
-    buildMesh(vertex, index, firstIndex, numYSegments, numRadialSegments, features);
+    buildMesh(vertex, index, firstIndex);
     
     // return the first index of the mesh
     return firstIndex;
@@ -86,23 +86,25 @@ public:
     }
   }
 
-  /// Evaluate a point on the spline. 0 <= seg < numControlPoints()-3
+  /// Evaluate a point on the spline. 0 <= seg < numIndices()-3
   glm::vec3 evaluate(int seg, float t) {
-    const glm::vec3 &p0 = controlPoints_[seg+0];
-    const glm::vec3 &p1 = controlPoints_[seg+1];
-    const glm::vec3 &p2 = controlPoints_[seg+2];
-    const glm::vec3 &p3 = controlPoints_[seg+3];
+    const glm::vec3 &p0 = controlPoints_[indices_[seg+0]];
+    const glm::vec3 &p1 = controlPoints_[indices_[seg+1]];
+    const glm::vec3 &p2 = controlPoints_[indices_[seg+2]];
+    const glm::vec3 &p3 = controlPoints_[indices_[seg+3]];
     glm::vec4 tpower(1, t, t*t, t*t*t);
     glm::vec4 beta = tpower * matrix_;
     return beta.x * p0 + beta.y * p1 + beta.z * p2 + beta.w * p3;
   }
 
   /// Return the number of control points in the spline.
-  int numControlPoints() const { return int(controlPoints_.size()); }
+  size_t numControlPoints() const { return controlPoints_.size(); }
+  size_t numIndices() const { return indices_.size(); }
 private:
   float radius_;
   glm::mat4 matrix_;
   std::vector<glm::vec3> controlPoints_;
+  std::vector<uint32_t> indices_;
 };
 
 } // gilgamesh
