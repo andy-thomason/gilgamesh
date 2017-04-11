@@ -27,8 +27,9 @@ namespace gilgamesh {
     class atom {
       const uint8_t *p_;
       const uint8_t *eol_;
+      bool is_hetatom_;
     public:
-      atom(const uint8_t *p, const uint8_t *eol) : p_(p), eol_(eol) {
+      atom(const uint8_t *p, const uint8_t *eol, bool is_hetatom) : p_(p), eol_(eol), is_hetatom_(is_hetatom) {
       }
 
       // http://www.wwpdb.org/documentation/file-format-content/format33/sect9.html#ATOM
@@ -67,6 +68,8 @@ namespace gilgamesh {
       bool isHydrogen() const { return p_[12] == 'H' || p_[13] == 'H'; }
       bool elementIs(const char *name) const { return p_[76] == name[0] && p_[77] == name[1]; }
       bool chargeIs(const char *name) const { return p_[78] == name[0] && p_[79] == name[1]; }
+
+      bool is_hetatom() const { return is_hetatom_; }
 
       glm::vec4 colorByFunction() const {
         std::string atom = atomName();
@@ -155,12 +158,12 @@ namespace gilgamesh {
           switch (*p) {
             case 'A': {
               if (p + 5 < eol && !memcmp(p, "ATOM  ", 6)) {
-                atoms_.emplace_back(p, eol);
+                atoms_.emplace_back(p, eol, false);
               }
             } break;
             case 'H': {
               if (p + 5 < eol && !memcmp(p, "HETATM", 6)) {
-                hetAtoms_.emplace_back(p, eol);
+                atoms_.emplace_back(p, eol, true);
               }
             } break;
             case 'C': {
@@ -190,20 +193,25 @@ namespace gilgamesh {
       }
     }
 
-    // get atoms in a set of chains.
-    std::vector<atom> atoms(const std::string &chains, bool invert=false) const {
+    /// Get the atoms in a set of chains.
+    /// If use_hetatoms is true, include HETATM atoms.
+    /// HETATM atoms are auxiliary atoms to proteins such as water or ions.
+    /// If invert is true, skip HETATMs and return atoms *not* in the chains.
+    std::vector<atom> atoms(const std::string &chains, bool invert=false, bool use_hetatoms = false) const {
       std::vector<atom> result;
       for (int idx = 0; idx != atoms_.size(); ++idx) {
         auto &p = atoms_[idx];
         char chainID = p.chainID();
         if (!invert) {
-          // if the chain is in the set specified on the command line (eg. ACBD)
-          if (chains.find(chainID) != std::string::npos) {
-            result.push_back(p);
+          if (!p.is_hetatom() || use_hetatoms) {
+            // if the chain is in the set specified on the command line (eg. ACBD)
+            if (chains.find(chainID) != std::string::npos) {
+              result.push_back(p);
+            }
           }
         } else {
           // if the chain is not in the set specified on the command line (eg. ACBD)
-          if (chains.find(chainID) == std::string::npos) {
+          if (!p.is_hetatom() && chains.find(chainID) == std::string::npos) {
             result.push_back(p);
           }
         }
@@ -211,13 +219,14 @@ namespace gilgamesh {
       return std::move(result);
     }
 
-    const std::vector<atom> &hetAtoms() const { return hetAtoms_; }
-
-    // return the set of chains used in this PDB file (ie. "ABCD")
-    std::string chains() const {
+    /// Return the set of chains used in this PDB file (ie. "ABCD").
+    /// If use_hetatoms is true, include HETATM "chains".
+    std::string chains(bool use_hetatoms=false) const {
       bool used[256] = {};
       for (auto &p : atoms_) {
-        used[p.chainID()] = true;
+        if (!p.is_hetatom() || use_hetatoms) {
+          used[p.chainID()] = true;
+        }
       }
       std::string result;
       for (size_t i = 32; i != 127; ++i) {
@@ -226,6 +235,7 @@ namespace gilgamesh {
       return std::move(result);
     }
 
+    /// Use knowledge of the chemistry to add connections to a list.
     int addImplicitConnections(const std::vector<atom> &atoms, std::vector<std::pair<int, int> > &out, size_t bidx, size_t eidx, int prevC, bool is_ca) const {
       static const char table[][5] = {
         "ASP",
@@ -412,7 +422,6 @@ namespace gilgamesh {
 
   private:
     std::vector<atom> atoms_;
-    std::vector<atom> hetAtoms_;
     std::vector<std::pair<int, int> > connections_;
 
     static int atoi(const uint8_t *b, const uint8_t *e) {
