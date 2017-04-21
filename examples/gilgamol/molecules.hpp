@@ -130,6 +130,9 @@ public:
 
         file.seekg(0, std::ios_base::beg);
         file.read((char*)text.data(), text.size());
+      } else {
+        fprintf(stderr, "File %s not found\n", pdb_filename);
+        exit(1);
       }
     }
   
@@ -178,7 +181,7 @@ public:
       // positions of the other atoms not in this chain.
       auto other_atoms = pdb.atoms(expanded_chains, true);
       for (int idx = 0; idx != other_atoms.size(); ++idx) {
-        auto &p = atoms[idx];
+        auto &p = other_atoms[idx];
         other_pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
       }
     }
@@ -525,19 +528,23 @@ private:
       glm::vec2 uv(0, 0);
       glm::vec4 color = glm::vec4(1, 1, 1, 1);
 
-      auto low = std::lower_bound(other_pos.begin(), other_pos.end(), x - 4, [](const glm::vec3 &a, float value) { return a.x < value; });
-      auto high = std::upper_bound(other_pos.begin(), other_pos.end(), x + 4, [](float value, const glm::vec3 &a) { return value < a.x; });
-      fprintf(stderr, "%f %f %f %d %d\n", x, y, z, (int)(low - other_pos.begin()), (int)(high - other_pos.begin()));
+      //printf("%7.3f %7.3f %7.3f\n", 
 
-      glm::vec3 pos(x, y, z);
+      constexpr float max_d = 4;
+      auto low = std::lower_bound(other_pos.begin(), other_pos.end(), x - max_d, [](const glm::vec3 &a, float value) { return a.x < value; });
+      auto high = std::upper_bound(other_pos.begin(), other_pos.end(), x + max_d, [](float value, const glm::vec3 &a) { return value < a.x; });
+      //printf("%f %f %f %d %d\n", x, y, z, (int)(low - other_pos.begin()), (int)(high - other_pos.begin()));
+      //auto low = other_pos.begin();
+      //auto high = other_pos.end();
+
+      float min_d2 = max_d * max_d;
       for (auto p = low; p != high; ++p) {
-        glm::vec3 d = *p - pos;
+        glm::vec3 d = *p - xyz;
         float d2 = glm::dot(d, d);
-        fprintf(stderr, "  %f %f %f %f\n", p->x, p->y, p->z, d2);
-        if (d2 < 16) {
-          color = glm::vec4(0.5f, 0.5f, 0.5f, 1);
-          fprintf(stderr, "hooray!\n");
-        }
+        min_d2 = std::min(min_d2, d2);
+      }
+      if (min_d2 < max_d * max_d) {
+        color = glm::vec4(0.0f, 0.0f, 1.0f, 1);
       }
 
       return gilgamesh::color_mesh::vertex_t(xyz, normal, uv, color);
@@ -546,6 +553,7 @@ private:
     // construct the excluded mesh using marching cubes
     if (is_vr) {
       std::sort(other_pos.begin(), other_pos.end(), [](const glm::vec3 &a, const glm::vec3 &b) { return a.x < b.x; });
+      //std::sort(pos.begin(), pos.end(), [](const glm::vec3 &a, const glm::vec3 &b) { return a.x < b.x; });
       mesh = gilgamesh::color_mesh(xdim, ydim, zdim, efn, vr_egen);
     } else {
       mesh = gilgamesh::color_mesh(xdim, ydim, zdim, efn, egen);

@@ -33,8 +33,8 @@ void par_for(int begin, int end, F fn) {
     futures[cpu] = std::async(std::launch::async, [cpu, &idx, end, &fn]() {
       for (;;) {
         int i = idx++;
-        printf("[%d %d]", i, cpu);
-        fflush(stdout);
+        fprintf(stderr, "[%d %d]", i, cpu);
+        fflush(stderr);
         if (i >= end) break;
         fn(i);
       }
