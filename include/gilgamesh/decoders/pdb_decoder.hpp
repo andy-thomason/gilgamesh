@@ -242,14 +242,18 @@ namespace gilgamesh {
           " CB ", " CG ",
           " CG ", " OD1",
           " CG ", " OD2",
+          "!",
         "ALA",
+          "!",
         "CYS",
           " CB ", " SG ",
+          "!",
         "GLU",
           " CB ", " CG ",
           " CG ", " CD ",
           " CD ", " OE1",
           " CD ", " OE2",
+          "!",
         "PHE",
           " CB ", " CG ",
           " CG ", " CD1",
@@ -258,7 +262,9 @@ namespace gilgamesh {
           " CD2", " CE2",
           " CE1", " CZ ",
           " CE2", " CZ ",
+          "!",
         "GLY",
+          "!",
         "HIS",
           " CB ", " CG ",
           " CG ", " ND1",
@@ -266,35 +272,43 @@ namespace gilgamesh {
           " ND1", " CE1",
           " CD2", " NE2",
           " CE1", " NE2",
+          "!",
         "ILE",
           " CB ", " CG1",
           " CB ", " CG2",
           " CG1", " CD1",
+          "!",
         "LYS",
           " CB ", " CG ",
           " CG ", " CD ",
           " CD ", " CE ",
           " CE ", " NZ ",
+          "!",
         "LEU",
           " CB ", " CG ",
           " CG ", " CD1",
           " CG ", " CD2",
+          "!",
         "MET",
           " CB ", " CG ",
           " CG ", " SD ",
           " SD ", " CE ",
+          "!",
         "ASN",
           " CB ", " CG ",
           " CG ", " OD1",
           " CG ", " ND2",
+          "!",
         "PRO",
           " CB ", " CG ",
           " CG ", " CD ",
+          "!",
         "GLN",
           " CB ", " CG ",
           " CG ", " CD ",
           " CD ", " OE1",
           " CD ", " NE2",
+          "!",
         "ARG",
           " CB ", " CG ",
           " CG ", " CD ",
@@ -302,14 +316,18 @@ namespace gilgamesh {
           " NE ", " CZ ",
           " CZ ", " NH1",
           " CZ ", " NH2",
+          "!",
         "SER",
           " CB ", " OG ",
+          "!",
         "THR",
           " CB ", " OG1",
           " CB ", " CG2",
+          "!",
         "VAL",
           " CB ", " CG1",
           " CB ", " CG2",
+          "!",
         "TRP",
           " CB ", " CG ",
           " CG ", " CD1",
@@ -321,6 +339,7 @@ namespace gilgamesh {
           " CE3", " CZ3",
           " CZ2", " CH2",
           " CZ3", " CH2",
+          "!",
         "TYR",
           " CB ", " CG ",
           " CG ", " CD1",
@@ -330,54 +349,154 @@ namespace gilgamesh {
           " CE1", " CZ ",
           " CE2", " CZ ",
           " CZ ", " OH ",
+          "!",
+        "  A",
+          " C1d", "  N9",
+/*
+          "  N9",
+          "  C8",
+          "  N7",
+          "  C5",
+          "  C6",
+          "  N6",
+          "  N1",
+          "  C2",
+          "  N3",
+          "  C4",
+*/
+          "!",
+        "  C",
+          " C1d", "  N1",
+/*
+          "  N1",
+          "  C2",
+          "  O2",
+          "  N3",
+          "  C4",
+          "  N4",
+          "  C5",
+          "  C6",
+*/
+          "!",
+        "  G",
+          " C1d", "  N9",
+/*
+          "  N9",
+          "  C8",
+          "  N7",
+          "  C5",
+          "  C6",
+          "  O6",
+          "  N1",
+          "  C2",
+          "  N2",
+          "  N3",
+          "  C4",
+*/
+          "!",
+        "  U",
+          " C1d", "  N1",
+/*
+          "  N1",
+          "  C2",
+          "  O2",
+          "  N3",
+          "  C4",
+          "  O4",
+          "  C5",
+          "  C6",
+*/
+          "!",
         ""
       };
 
-      int N_idx = findAtom(atoms, bidx, eidx, " N  ");
-      int C_idx = findAtom(atoms, bidx, eidx, " C  ");
-      int O_idx = findAtom(atoms, bidx, eidx, " O  ");
-      int CA_idx = findAtom(atoms, bidx, eidx, " CA ");
-      int CB_idx = findAtom(atoms, bidx, eidx, " CB ");
+      if (atoms[bidx].resNameIs("  A") || atoms[bidx].resNameIs("  C") || atoms[bidx].resNameIs("  G") || atoms[bidx].resNameIs("  U")) {
+        int P_idx = findAtom(atoms, bidx, eidx, " P  ");
+        int OP1_idx = findAtom(atoms, bidx, eidx, " OP1");
+        int OP2_idx = findAtom(atoms, bidx, eidx, " OP2");
+        int O5d_idx = findAtom(atoms, bidx, eidx, " O5'");
+        int C5d_idx = findAtom(atoms, bidx, eidx, " C5'");
+        int C4d_idx = findAtom(atoms, bidx, eidx, " C4'");
+        int O4d_idx = findAtom(atoms, bidx, eidx, " O4'");
+        int C3d_idx = findAtom(atoms, bidx, eidx, " C3'");
+        int O3d_idx = findAtom(atoms, bidx, eidx, " O3'");
+        int C2d_idx = findAtom(atoms, bidx, eidx, " C2'");
+        int O2d_idx = findAtom(atoms, bidx, eidx, " O2'");
+        int C1d_idx = findAtom(atoms, bidx, eidx, " C1'");
 
-      //printf("find %s N%d C%d O%d CA%d CB%d\n", atoms[bidx].resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
+        if (O5d_idx != -1 && C5d_idx != -1 && C4d_idx != -1 && O4d_idx != -1 && C3d_idx != -1 && O3d_idx != -1 && C2d_idx != -1 && O2d_idx != -1 && C1d_idx != -1) {
+          if (P_idx != -1) {
+            if (prevC != -1) out.emplace_back(prevC, P_idx);
+            if (OP1_idx != -1) out.emplace_back(P_idx, OP1_idx);
+            if (OP2_idx != -1) out.emplace_back(P_idx, OP2_idx);
+            out.emplace_back(P_idx, O5d_idx);
+          }
 
-      if (N_idx == -1 || C_idx == -1 || CA_idx == -1) {
-        printf("addImplicitConnections: bad %s N%d C%d O%d CA%d CB%d\n", atoms[bidx].resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
+          out.emplace_back(C5d_idx, C4d_idx);
+          out.emplace_back(C4d_idx, C3d_idx);
+          out.emplace_back(C3d_idx, C2d_idx);
+          out.emplace_back(C2d_idx, C1d_idx);
+
+          out.emplace_back(C5d_idx, O5d_idx);
+          out.emplace_back(C4d_idx, O4d_idx);
+          out.emplace_back(C3d_idx, O3d_idx);
+          out.emplace_back(C2d_idx, O2d_idx);
+          out.emplace_back(C1d_idx, O4d_idx);
+          prevC = O3d_idx;
+        } else {
+          printf("bad base %d %d %d %d %d %d %d %d %d %d %d\n", OP1_idx, OP2_idx, O5d_idx, C5d_idx, C4d_idx, O4d_idx, C3d_idx, O3d_idx, C2d_idx, O2d_idx, C1d_idx);
+        }
+        
         return -1;
-      }
-
-      if (is_ca) {
-        if (prevC != -1) {
-          out.emplace_back(prevC, CA_idx);
-        }
-        prevC = CA_idx;
       } else {
-        if (prevC != -1) {
-          out.emplace_back(prevC, N_idx);
+        int N_idx = findAtom(atoms, bidx, eidx, " N  ");
+        int C_idx = findAtom(atoms, bidx, eidx, " C  ");
+        int O_idx = findAtom(atoms, bidx, eidx, " O  ");
+        int CA_idx = findAtom(atoms, bidx, eidx, " CA ");
+        int CB_idx = findAtom(atoms, bidx, eidx, " CB ");
+
+        //printf("find %s N%d C%d O%d CA%d CB%d\n", atoms[bidx].resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
+
+        if (N_idx == -1 || C_idx == -1 || CA_idx == -1) {
+          printf("addImplicitConnections: bad %s N%d C%d O%d CA%d CB%d\n", atoms[bidx].resName().c_str(), N_idx, C_idx, O_idx, CA_idx, CB_idx);
+          return -1;
         }
 
-        out.emplace_back(N_idx, CA_idx);
+        if (is_ca) {
+          if (prevC != -1) {
+            out.emplace_back(prevC, CA_idx);
+          }
+          prevC = CA_idx;
+        } else {
+          if (prevC != -1) {
+            out.emplace_back(prevC, N_idx);
+          }
 
-        out.emplace_back(CA_idx, C_idx);
+          out.emplace_back(N_idx, CA_idx);
 
-        if (O_idx != -1) out.emplace_back(C_idx, O_idx);
+          out.emplace_back(CA_idx, C_idx);
 
-        prevC = C_idx;
+          if (O_idx != -1) out.emplace_back(C_idx, O_idx);
+
+          prevC = C_idx;
+        }
+
+        //return C_idx;
+
+        // All except GLY
+        if (CB_idx != -1) {
+          out.emplace_back(CA_idx, CB_idx);
+        }
       }
 
-      //return C_idx;
-
-      // All except GLY
-      if (CB_idx != -1) {
-        out.emplace_back(CA_idx, CB_idx);
-      }
-
-      for (size_t i = 0; table[i][0]; ++i) {
-        if (table[i][0] >= 'A' && atoms[bidx].resNameIs(table[i])) {
-          //printf("%s\n", table[i]);
+      //printf("!%s\n", atoms[bidx].resName().c_str());
+      bool found = false;
+      for (size_t i = 0; table[i][0];) {
+        //printf("%d -%s\n", (int)i, table[i]);
+        if (atoms[bidx].resNameIs(table[i])) {
           const char *res_name = table[i];
           ++i;
-          while (table[i][0] == ' ') {
+          while (table[i][0] != '!') {
             //printf("  %s %s\n", table[i], table[i+1]);
             int from = findAtom(atoms, bidx, eidx, table[i]);
             int to = findAtom(atoms, bidx, eidx, table[i+1]);
@@ -390,13 +509,23 @@ namespace gilgamesh {
               printf("Unexpected chemistry in %s/%d: %s %d   %s %d\n", res_name, resSeq, table[i-2], from, table[i-1], to);
             }
           }
+          found = true;
           break;
+        } else {
+          ++i;
+          while (table[i][0] != '!') {
+            //printf("skip  %s %s\n", table[i], table[i+1]);
+            i += 2;
+          }
+          i++;
         }
+      }
+      if (!found) {
+        printf("not found\n");
       }
 
       return prevC;
     }
-
     // return the index of the next resiude
     size_t nextResidue(const std::vector<atom> &atoms, size_t bidx) const {
       int resSeq = atoms[bidx].resSeq();
