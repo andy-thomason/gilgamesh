@@ -13,7 +13,7 @@
 #include <gilgamesh/encoders/ply_encoder.hpp>
 #include <gilgamesh/shapes/sphere.hpp>
 #include <gilgamesh/shapes/cylinder.hpp>
-#include <gilgamesh/shapes/spline.hpp>
+//#include <gilgamesh/shapes/spline.hpp>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
