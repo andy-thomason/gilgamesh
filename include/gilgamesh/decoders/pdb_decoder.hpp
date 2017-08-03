@@ -104,9 +104,11 @@ namespace gilgamesh {
       bool atomNameIs(const char *name) const { return compare(atomName_, name); }
       bool elementIs(const char *name) const { return compare(element_, name); }
       bool chargeIs(const char *name) const { return compare(charge_, name); }
-      bool isHydrogen() const { return compare(element_, "H"); }
 
-      bool is_hetatom() const { return is_hetatom_; }
+      // I am only guessing that 'D' is also hydrogen!
+      bool isHydrogen() const { return compare(element_, "H") || compare(element_, "D"); }
+
+      bool isHetatom() const { return is_hetatom_; }
 
       glm::vec4 colorByFunction() const {
         if (
@@ -349,22 +351,23 @@ namespace gilgamesh {
     /// If use_hetatoms is true, include HETATM atoms.
     /// HETATM atoms are auxiliary atoms to proteins such as water or ions.
     /// If invert is true, skip HETATMs and return atoms *not* in the chains.
-    std::vector<atom> atoms(const std::string &chains, bool invert=false, bool use_hetatoms = false) const {
+    std::vector<atom> atoms(const std::string &chains, bool invert=false, bool use_hetatoms = false, bool use_hydrogens = false) const {
       std::vector<atom> result;
       for (int idx = 0; idx != atoms_.size(); ++idx) {
         auto &p = atoms_[idx];
         char chainID = p.chainID();
-        if (!invert) {
-          if (!p.is_hetatom() || use_hetatoms) {
+        bool ok = (!p.isHetatom() || use_hetatoms) || (!p.isHydrogen() || use_hydrogens);
+        if (ok) {
+          if (!invert) {
             // if the chain is in the set specified on the command line (eg. ACBD)
             if (chains.find(chainID) != std::string::npos) {
               result.push_back(p);
             }
-          }
-        } else {
-          // if the chain is not in the set specified on the command line (eg. ACBD)
-          if (!p.is_hetatom() && chains.find(chainID) == std::string::npos) {
-            result.push_back(p);
+          } else {
+            // if the chain is not in the set specified on the command line (eg. ACBD)
+            if (ok && chains.find(chainID) == std::string::npos) {
+              result.push_back(p);
+            }
           }
         }
       }
@@ -376,7 +379,7 @@ namespace gilgamesh {
     std::string chains(bool use_hetatoms=false) const {
       bool used[256] = {};
       for (auto &p : atoms_) {
-        if (!p.is_hetatom() || use_hetatoms) {
+        if (!p.isHetatom() || use_hetatoms) {
           used[p.chainID()] = true;
         }
       }

@@ -45,6 +45,7 @@ public:
     bool error = false;
     bool list_chains = false;
     bool use_hetatoms = false;
+    bool use_hydrogens = false;
     const char *chains = "A-Za-z";
     const char *cmd = "";
     const char *format = "fbx";
@@ -66,6 +67,8 @@ public:
         format = "ply";
       } else if (!strcmp(arg, "--use-hetatoms")) {
         use_hetatoms = true;
+      } else if (!strcmp(arg, "--use-hydrogens")) {
+        use_hydrogens = true;
       } else if (!strcmp(arg, "--list-chains")) {
         list_chains = true;
       } else if (!strcmp(arg, "-")) {
@@ -106,6 +109,7 @@ public:
         "--chains <n>\teg. A-E or ABDEG set of chains to use for generating FBX files. defaults to A-Z...\n"
         "--list-chains <n>\tjust list the chains in the PDB file\n"
         "--use-hetatoms\tInclude HETATM atoms\n"
+        "--use-hydrogens\tInclude H and D atoms\n"
         "--output-path <dir>\tdirectory to output files to\n"
         "--help <n>\tshow this text\n"
       ); return;
@@ -171,7 +175,7 @@ public:
     bool is_vr = !strcmp(cmd, "vr");
     bool is_capsule = !strcmp(cmd, "capsule");
 
-    auto atoms = pdb.atoms(expanded_chains, use_hetatoms);
+    auto atoms = pdb.atoms(expanded_chains, use_hetatoms, use_hydrogens);
 
     gilgamesh::color_mesh mesh;
 
@@ -201,7 +205,7 @@ public:
         pos.push_back(glm::vec3(p.x(), p.y(), p.z()));
         float r = p.vanDerVaalsRadius();
 
-        if (!p.is_hetatom()) {
+        if (!p.isHetatom()) {
           // Skip atoms in alternate amino acids.
           if (p.iCode() != ' ') {
             r = 0;
